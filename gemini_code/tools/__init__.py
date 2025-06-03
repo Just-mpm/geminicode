@@ -1,3 +1,3 @@
 """
-Ferramentas de manutenção do Gemini Code
+Tools Module - Sistema de ferramentas estruturado estilo Claude Code
 """
