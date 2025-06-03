@@ -196,7 +196,20 @@ class GeminiCodeMasterSystem:
         # MCP client
         self.mcp_client = get_mcp_client(str(self.project_path))
         
-        self.logger.info("✅ Funcionalidades avançadas inicializadas")
+        # Inicializa módulos de cognição
+        from ..cognition.architectural_reasoning import ArchitecturalReasoning
+        from ..cognition.complexity_analyzer import ComplexityAnalyzer
+        from ..cognition.design_pattern_engine import DesignPatternEngine
+        from ..cognition.problem_solver import ProblemSolver
+        from ..cognition.learning_engine import LearningEngine
+        
+        self.architectural_reasoning = ArchitecturalReasoning(self.gemini_client, self.project_manager)
+        self.complexity_analyzer = ComplexityAnalyzer(self.gemini_client, self.project_manager)
+        self.design_pattern_engine = DesignPatternEngine(self.gemini_client, self.project_manager)
+        self.problem_solver = ProblemSolver(self.gemini_client, self.project_manager)
+        self.learning_engine = LearningEngine(self.gemini_client, self.memory_system)
+        
+        self.logger.info("✅ Funcionalidades avançadas e cognição inicializadas")
     
     async def _initialize_enterprise_features(self):
         """Inicializa funcionalidades empresariais."""
@@ -222,10 +235,30 @@ class GeminiCodeMasterSystem:
         """Inicializa interface de usuário."""
         self.repl = GeminiREPL(str(self.project_path))
         
+        # Inicializa interface de chat
+        from ..interface.chat_interface import ChatInterface
+        from ..core.natural_language import NaturalLanguageCore
+        from ..core.workspace_manager import WorkspaceManager
+        
+        nlp_core = NaturalLanguageCore()
+        workspace_manager = WorkspaceManager(self.project_path)
+        
+        self.chat_interface = ChatInterface(
+            self.gemini_client,
+            self.project_manager,
+            nlp_core,
+            self.file_manager,
+            workspace_manager
+        )
+        
+        # Inicializa command executor
+        from ..execution.command_executor import CommandExecutor
+        self.command_executor = CommandExecutor(self.gemini_client)
+        
         # Conecta callbacks do sistema
         await self._setup_system_integration()
         
-        self.logger.info("✅ Interface REPL inicializada")
+        self.logger.info("✅ Interface REPL e Chat inicializadas")
     
     async def _setup_system_integration(self):
         """Configura integração entre todos os sistemas."""
@@ -317,39 +350,128 @@ class GeminiCodeMasterSystem:
         await self.repl.start(headless=headless)
     
     async def execute_command(self, command: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Executa comando usando todo o sistema."""
+        """Executa comando usando todo o sistema com integração completa."""
         self.stats['total_commands'] += 1
         
         try:
+            # Adiciona contexto do sistema
+            if context is None:
+                context = {}
+            
+            # Enriquece contexto com informações do sistema
+            context.update({
+                'project_path': str(self.project_path),
+                'project_type': self.project_manager._detect_project_type() if self.project_manager else 'unknown',
+                'memory_context': await self.memory_system.get_recent_context(5) if self.memory_system else [],
+                'session_id': self.session_manager.current_session_id if self.session_manager else None,
+                'workspace': str(self.project_path)
+            })
+            
             # Parse comando
             if command.startswith('/'):
-                # Comando slash
-                result = await self.command_parser.parse_slash_command(command)
+                # Comando slash - usa parser especializado
+                parsed = await self.command_parser.parse_slash_command(command)
+                
+                # Executa comando baseado no tipo
+                if parsed['command'] == 'help':
+                    result = await self._handle_help_command()
+                elif parsed['command'] == 'cost':
+                    result = await self._handle_cost_command()
+                elif parsed['command'] == 'clear':
+                    result = await self._handle_clear_command()
+                elif parsed['command'] == 'compact':
+                    result = await self._handle_compact_command(parsed.get('args', ''))
+                elif parsed['command'] == 'doctor':
+                    result = await self._handle_doctor_command()
+                elif parsed['command'] == 'memory':
+                    result = await self._handle_memory_command()
+                elif parsed['command'] == 'config':
+                    result = await self._handle_config_command(parsed.get('args', []))
+                else:
+                    # Comando slash customizado - delega para tool registry
+                    result = await self.tool_registry.execute_slash_command(parsed)
+                
                 command_type = 'slash'
             else:
-                # Comando natural - usa tool registry
-                result = await self.tool_registry.execute_command_natural(command, context or {})
+                # Comando natural - integração completa
+                # 1. Verifica permissões primeiro
+                if self.permission_manager:
+                    permission_check = await self.permission_manager.check_permission(
+                        'execute_command',
+                        {'command': command, 'context': context}
+                    )
+                    
+                    if not permission_check['allowed']:
+                        # Solicita aprovação se necessário
+                        if permission_check.get('requires_approval'):
+                            approval = await self.approval_system.request_approval(
+                                'execute_command',
+                                command,
+                                permission_check.get('reason', 'Comando requer aprovação')
+                            )
+                            
+                            if not approval['approved']:
+                                return {
+                                    'success': False,
+                                    'error': 'Comando negado pelo usuário',
+                                    'reason': approval.get('reason')
+                                }
+                
+                # 2. Analisa comando com NLP se disponível
+                from ..interface.chat_interface import ChatInterface
+                if hasattr(self, 'chat_interface') and self.chat_interface:
+                    # Usa interface de chat para processar
+                    await self.chat_interface.process_message(command)
+                    result = {'success': True, 'processed_by': 'chat_interface'}
+                else:
+                    # 3. Executa via tool registry com contexto completo
+                    result = await self.tool_registry.execute_command_natural(command, context)
+                
                 command_type = 'natural'
             
+            # Atualiza estatísticas
             if result.get('success', True):
                 self.stats['successful_operations'] += 1
+                if 'tool_used' in result:
+                    self.stats['tools_executed'] += 1
             else:
                 self.stats['failed_operations'] += 1
             
-            # Log na memória
+            # Log na memória com contexto completo
             await self.memory_system.add_conversation(
                 user_input=command,
                 assistant_response=str(result),
                 intent=command_type,
-                success=result.get('success', True)
+                success=result.get('success', True),
+                metadata={
+                    'timestamp': datetime.now().isoformat(),
+                    'execution_time': result.get('execution_time', 0),
+                    'tool_used': result.get('tool_used', None),
+                    'context': context
+                }
             )
+            
+            # Trigger pós-processamento se necessário
+            if result.get('success') and result.get('trigger_analysis'):
+                asyncio.create_task(self._post_process_command(command, result))
             
             return result
             
         except Exception as e:
             self.stats['failed_operations'] += 1
             self.logger.error(f"Erro executando comando '{command}': {e}")
-            return {'success': False, 'error': str(e)}
+            
+            # Tenta recuperação automática
+            recovery_result = await self._attempt_error_recovery(command, str(e), context)
+            if recovery_result['success']:
+                return recovery_result
+            
+            return {
+                'success': False,
+                'error': str(e),
+                'recovery_attempted': True,
+                'recovery_failed': True
+            }
     
     async def comprehensive_health_check(self) -> Dict[str, Any]:
         """Verifica saúde de TODOS os sistemas."""
@@ -527,15 +649,349 @@ class GeminiCodeMasterSystem:
         
         # Salva sessões ativas
         if self.session_manager:
-            # Implementar salvamento de sessões ativas
-            pass
+            await self.session_manager.save_current_session()
         
-        # Limpa caches
+        # Limpa caches e salva estado
         if self.memory_system:
-            # Implementar limpeza de cache
-            pass
+            await self.memory_system.save_state()
+            await self.memory_system.cleanup_old_data()
+        
+        # Para todos os processos em execução
+        if hasattr(self, 'command_executor'):
+            self.command_executor.kill_all_processes()
         
         self.logger.info("✅ Sistema encerrado com sucesso")
+    
+    async def _handle_help_command(self) -> Dict[str, Any]:
+        """Handler para comando /help."""
+        help_text = """
+🚀 **GEMINI CODE - COMANDOS DISPONÍVEIS**
+
+**Comandos Slash:**
+• `/help` - Mostra esta ajuda
+• `/cost` - Mostra custos de uso da API
+• `/clear` - Limpa contexto da sessão
+• `/compact [instruções]` - Compacta contexto mantendo informações importantes
+• `/doctor` - Executa diagnóstico completo do sistema
+• `/memory` - Mostra uso de memória e contexto
+• `/config [chave] [valor]` - Visualiza ou altera configurações
+• `/bug` - Reporta um problema
+• `/model` - Mostra modelo atual
+
+**Comandos Naturais:**
+• "crie um arquivo X" - Cria arquivo com conteúdo
+• "modifique o arquivo Y" - Edita arquivo existente
+• "analise erros" - Procura e corrige erros
+• "execute comando Z" - Executa comando no terminal
+• "explique o código" - Explica funcionamento
+• "otimize performance" - Melhora desempenho
+• "faça deploy" - Prepara para produção
+
+**Atalhos:**
+• `Ctrl+C` - Cancela operação atual
+• `Ctrl+D` - Sai do programa
+• `↑/↓` - Navega no histórico
+• `Tab` - Autocomplete
+
+💡 **Dica:** Use linguagem natural! Ex: "crie uma API REST para gerenciar usuários"
+"""
+        return {
+            'success': True,
+            'content': help_text,
+            'type': 'help'
+        }
+    
+    async def _handle_cost_command(self) -> Dict[str, Any]:
+        """Handler para comando /cost."""
+        if not self.gemini_client:
+            return {'success': False, 'error': 'Cliente Gemini não inicializado'}
+        
+        stats = self.gemini_client.get_performance_stats()
+        
+        # Estimativa de custos (ajustar conforme pricing real)
+        input_cost_per_1k = 0.00025  # $0.25 por 1M tokens
+        output_cost_per_1k = 0.001   # $1.00 por 1M tokens
+        
+        total_input_cost = (stats['total_input_tokens'] / 1000) * input_cost_per_1k
+        total_output_cost = (stats['total_output_tokens'] / 1000) * output_cost_per_1k
+        total_cost = total_input_cost + total_output_cost
+        
+        cost_info = f"""
+💰 **RELATÓRIO DE CUSTOS**
+
+📊 **Uso de Tokens:**
+• Tokens de entrada: {stats['total_input_tokens']:,}
+• Tokens de saída: {stats['total_output_tokens']:,}
+• Total de requests: {stats['total_requests']}
+
+💵 **Custos Estimados:**
+• Custo de entrada: ${total_input_cost:.4f}
+• Custo de saída: ${total_output_cost:.4f}
+• **TOTAL: ${total_cost:.4f}**
+
+📈 **Médias por Request:**
+• Entrada: {stats['avg_input_per_request']:.0f} tokens
+• Saída: {stats['avg_output_per_request']:.0f} tokens
+
+⚡ **Capacidades:**
+• Contexto máximo: {stats['max_input_capacity']:,} tokens
+• Saída máxima: {stats['max_output_capacity']:,} tokens
+"""
+        return {
+            'success': True,
+            'content': cost_info,
+            'type': 'cost',
+            'data': {
+                'total_cost': total_cost,
+                'tokens_used': stats['total_input_tokens'] + stats['total_output_tokens']
+            }
+        }
+    
+    async def _handle_clear_command(self) -> Dict[str, Any]:
+        """Handler para comando /clear."""
+        # Limpa contexto da sessão
+        if self.session_manager:
+            await self.session_manager.clear_current_session()
+        
+        # Limpa memória de curto prazo
+        if self.memory_system:
+            self.memory_system.clear_short_term_memory()
+        
+        # Reseta contexto da interface
+        if hasattr(self, 'chat_interface') and self.chat_interface:
+            self.chat_interface.context.clear()
+        
+        return {
+            'success': True,
+            'content': "✅ Contexto limpo! Começando nova conversa.",
+            'type': 'clear'
+        }
+    
+    async def _handle_compact_command(self, instructions: str = "") -> Dict[str, Any]:
+        """Handler para comando /compact."""
+        if not self.context_compactor:
+            return {'success': False, 'error': 'Sistema de compactação não disponível'}
+        
+        try:
+            # Obtém contexto atual
+            current_context = []
+            if hasattr(self, 'chat_interface') and self.chat_interface:
+                current_context = self.chat_interface.context
+            
+            # Compacta contexto
+            compacted = await self.context_compactor.compact_context(
+                current_context,
+                custom_instructions=instructions if instructions else None
+            )
+            
+            # Atualiza contexto
+            if hasattr(self, 'chat_interface') and self.chat_interface:
+                self.chat_interface.context = compacted['context']
+            
+            self.stats['context_compactions'] += 1
+            
+            return {
+                'success': True,
+                'content': f"""
+✅ **Contexto Compactado!**
+
+• Mensagens antes: {compacted['original_count']}
+• Mensagens depois: {compacted['compacted_count']}
+• Redução: {compacted['reduction_percentage']:.1f}%
+• Tokens salvos: {compacted['tokens_saved']:,}
+
+{f"📝 Instruções aplicadas: {instructions}" if instructions else ""}
+""",
+                'type': 'compact',
+                'data': compacted
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Erro ao compactar: {str(e)}'
+            }
+    
+    async def _handle_doctor_command(self) -> Dict[str, Any]:
+        """Handler para comando /doctor."""
+        health = await self.comprehensive_health_check()
+        
+        # Formata relatório
+        report = "🏥 **DIAGNÓSTICO DO SISTEMA**\n\n"
+        report += f"📊 Status Geral: **{health['overall_status'].upper()}**\n"
+        report += f"🕐 Timestamp: {health['timestamp']}\n\n"
+        
+        # Detalhes por sistema
+        for system_name, system_health in health['systems'].items():
+            status_emoji = "✅" if system_health.get('status') == 'healthy' else "❌"
+            report += f"\n**{system_name.replace('_', ' ').title()}** {status_emoji}\n"
+            
+            if system_health.get('issues'):
+                for issue in system_health['issues']:
+                    report += f"  ⚠️ {issue}\n"
+            
+            if system_health.get('components'):
+                report += f"  📦 Componentes: {', '.join(system_health['components'])}\n"
+        
+        # Recomendações
+        if health['overall_status'] != 'healthy':
+            report += "\n⚡ **RECOMENDAÇÕES:**\n"
+            report += "• Verifique os componentes com erro\n"
+            report += "• Execute `python main.py --repair` para correção automática\n"
+            report += "• Consulte logs em `logs/` para mais detalhes\n"
+        
+        return {
+            'success': True,
+            'content': report,
+            'type': 'doctor',
+            'data': health
+        }
+    
+    async def _handle_memory_command(self) -> Dict[str, Any]:
+        """Handler para comando /memory."""
+        if not self.memory_system:
+            return {'success': False, 'error': 'Sistema de memória não disponível'}
+        
+        memory_stats = self.memory_system.get_memory_stats()
+        
+        report = f"""
+🧠 **STATUS DA MEMÓRIA**
+
+**Memória de Curto Prazo:**
+• Conversas ativas: {memory_stats['short_term']['conversations']}
+• Mensagens totais: {memory_stats['short_term']['total_messages']}
+• Uso: {memory_stats['short_term']['memory_usage_mb']:.1f} MB
+
+**Memória de Longo Prazo:**
+• Conversas arquivadas: {memory_stats['long_term']['conversations']}
+• Decisões salvas: {memory_stats['long_term']['decisions']}
+• Padrões aprendidos: {memory_stats['long_term']['patterns']}
+• Tamanho DB: {memory_stats['long_term']['db_size_mb']:.1f} MB
+
+**Contexto Atual:**
+• Janela de contexto: {memory_stats['context']['window_size']:,} tokens
+• Uso atual: {memory_stats['context']['current_usage']:,} tokens ({memory_stats['context']['usage_percentage']:.1f}%)
+• Mensagens em contexto: {memory_stats['context']['messages_in_context']}
+
+💡 Use `/compact` se o uso de contexto estiver alto!
+"""
+        
+        return {
+            'success': True,
+            'content': report,
+            'type': 'memory',
+            'data': memory_stats
+        }
+    
+    async def _handle_config_command(self, args: List[str]) -> Dict[str, Any]:
+        """Handler para comando /config."""
+        if not args:
+            # Mostra configuração atual
+            config_dict = self.config_manager.get_all_config()
+            
+            report = "⚙️ **CONFIGURAÇÃO ATUAL**\n\n"
+            for section, values in config_dict.items():
+                report += f"**[{section}]**\n"
+                for key, value in values.items():
+                    if 'key' in key.lower() or 'password' in key.lower():
+                        value = "***HIDDEN***"
+                    report += f"  • {key}: {value}\n"
+                report += "\n"
+            
+            return {
+                'success': True,
+                'content': report,
+                'type': 'config'
+            }
+        
+        elif len(args) >= 2:
+            # Altera configuração
+            key = args[0]
+            value = ' '.join(args[1:])
+            
+            try:
+                self.config_manager.update_config(key, value)
+                
+                return {
+                    'success': True,
+                    'content': f"✅ Configuração atualizada: {key} = {value}",
+                    'type': 'config'
+                }
+            except Exception as e:
+                return {
+                    'success': False,
+                    'error': f"Erro ao atualizar configuração: {str(e)}"
+                }
+        
+        else:
+            return {
+                'success': False,
+                'error': "Uso: /config ou /config <chave> <valor>"
+            }
+    
+    async def _attempt_error_recovery(self, command: str, error: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Tenta recuperar de erros automaticamente."""
+        try:
+            # Usa Gemini para analisar erro e sugerir correção
+            prompt = f"""
+Ocorreu um erro ao executar o comando. Analise e sugira uma correção:
+
+Comando: {command}
+Erro: {error}
+Contexto: Projeto {context.get('project_type', 'desconhecido')}
+
+Sugira:
+1. Qual foi a causa provável do erro
+2. Como corrigir o comando
+3. Comando alternativo que funcione
+
+Seja direto e prático.
+"""
+            
+            response = await self.gemini_client.generate_response(prompt)
+            
+            # Tenta extrair comando alternativo
+            lines = response.split('\n')
+            for line in lines:
+                if 'comando alternativo:' in line.lower() or 'tente:' in line.lower():
+                    alternative_cmd = line.split(':', 1)[1].strip()
+                    if alternative_cmd and alternative_cmd != command:
+                        # Tenta executar comando alternativo
+                        return await self.execute_command(alternative_cmd, context)
+            
+            return {
+                'success': False,
+                'error': error,
+                'recovery_suggestion': response
+            }
+            
+        except Exception as recovery_error:
+            return {
+                'success': False,
+                'error': error,
+                'recovery_error': str(recovery_error)
+            }
+    
+    async def _post_process_command(self, command: str, result: Dict[str, Any]):
+        """Pós-processamento assíncrono de comandos."""
+        try:
+            # Analisa se precisa de ações adicionais
+            if 'files_created' in result:
+                # Verifica sintaxe dos arquivos criados
+                for file_path in result['files_created']:
+                    if file_path.endswith('.py'):
+                        # Verifica erros de sintaxe
+                        check_result = await self.health_monitor.check_file_syntax(file_path)
+                        if not check_result['valid']:
+                            self.logger.warning(f"Arquivo {file_path} tem erros de sintaxe")
+            
+            # Atualiza índices de busca se necessário
+            if 'files_modified' in result or 'files_created' in result:
+                if hasattr(self, 'search_index'):
+                    await self.search_index.update_index()
+            
+        except Exception as e:
+            self.logger.error(f"Erro no pós-processamento: {e}")
 
 
 # Instância global do sistema principal
