@@ -86,7 +86,7 @@ echo   /memory  - Status da memória
 echo   Ctrl+D   - Sair
 echo ========================================
 echo.
-python gemini_repl.py
+python gemini_repl_launcher.py
 goto menu
 
 :start_main
@@ -98,7 +98,7 @@ goto menu
 :run_tests
 echo.
 echo [*] Executando Teste de Sistema...
-python test_system_ready.py
+python tests/test_system_functionality.py
 echo.
 pause
 goto menu
