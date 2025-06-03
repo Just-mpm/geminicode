@@ -129,23 +129,27 @@ pip install -r requirements.txt
 ## 📂 Estrutura do Projeto
 
 ```
-📁 gemini_code/
-├── 🚀 start_gemini_code.bat     # Inicializador completo
-├── ⚡ gemini_code_quick.bat     # Início rápido
-├── 🎯 gemini_repl.py            # REPL interativo
+📁 Gemini Code/
 ├── 🏠 main.py                   # Interface principal
 ├── 📋 requirements.txt          # Dependências
-├── 📋 requirements-minimal.txt  # Dependências mínimas
 ├── 🧠 gemini_code/             # Código principal
-│   ├── 🏗️ core/                # Componentes centrais
-│   ├── 🧠 cognition/           # IA avançada (NOVO!)
-│   ├── 🔧 tools/               # 11 ferramentas
+│   ├── 🏗️ core/                # Componentes centrais (Master System)
+│   ├── 🧠 cognition/           # IA avançada - 5 módulos únicos
+│   ├── 🔧 tools/               # 11 ferramentas especializadas
 │   ├── 🔒 security/            # Sistema de permissões
-│   ├── 💾 memory/              # Sistema de memória
-│   └── 🎨 interface/           # Interface de chat
-├── 🧪 tests/                   # Todos os testes
-├── 📚 docs/                    # Documentação
-└── 📊 reports/                 # Relatórios
+│   ├── 💾 memory/              # Sistema de memória persistente
+│   ├── 🎨 interface/           # Interface de chat avançada
+│   ├── 📊 analysis/            # Análise e monitoramento
+│   ├── 🚀 cli/                 # REPL e comandos
+│   └── 🔗 integration/         # Integrações Git/CI/CD
+├── 🧪 tests/                   # Suite completa de testes
+├── 📚 docs/                    # Documentação organizada
+│   ├── 📋 analysis/            # Análises técnicas
+│   └── 📊 reports/             # Relatórios de verificação
+├── 📊 reports/                 # Relatórios de execução
+└── 🛠️ scripts/                # Scripts de verificação
+    ├── 🔍 verification/        # Scripts de análise
+    └── 📜 tests_legacy/        # Testes históricos
 ```
 
 ## 🔧 Configuração Avançada

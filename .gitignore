@@ -79,3 +79,8 @@ test_critical_workspace/
 # Reports (versioned in reports/ folder)
 *_report.json
 real_execution_evidence.json
+
+# Arquivos temporários de verificação
+functionality_test_report.json
+verification_report*.json
+relatorio_verificacao*.json

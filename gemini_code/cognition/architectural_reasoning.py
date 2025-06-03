@@ -972,7 +972,7 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         for i, rec in enumerate(analysis['recommendations'][:10], 1):
             doc += f"{i}. **{rec['title']}** ({rec['priority']} priority)\n"
             doc += f"   - {rec['description']}\n"
-            doc += f"   - Effort: {rec['effort']}, Impact: {rec['impact']}\n
+            doc += f"   - Effort: {rec['effort']}, Impact: {rec['impact']}\n"
     async def analyze_system_architecture(self, project_path: str) -> Dict[str, Any]:
         """Análise completa da arquitetura do sistema."""
         try:
@@ -1089,26 +1089,6 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             
         except Exception as e:
             return [f'Erro na geração de recomendações: {e}']
-
-\n\n"
-        
-        if 'ai_insights' in analysis and analysis['ai_insights'].get('overall_assessment'):
-            doc += "## AI Analysis\n\n"
-            doc += analysis['ai_insights']['overall_assessment'] + "\n\n"
-        
-        doc += """## Metrics
-
-| Metric | Value |
-|--------|-------|
-"""
-        
-        metrics = analysis['metrics']
-        doc += f"| Maintainability | {metrics.get('maintainability', 0):.1f}/100 |\n"
-        doc += f"| Modularity | {metrics.get('modularity', 0):.2f} |\n"
-        doc += f"| Testability | {metrics.get('testability', 0):.1f}/100 |\n"
-        doc += f"| Scalability | {metrics.get('scalability', 0):.1f}/100 |\n"
-        
-        return doc
     
     async def evaluate_new_component(self, component_spec: Dict[str, Any]) -> Dict[str, Any]:
         """Avalia o impacto de adicionar um novo componente."""

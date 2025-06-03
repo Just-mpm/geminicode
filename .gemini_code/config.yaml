@@ -1,0 +1,76 @@
+# Configuração Local do Gemini Code
+# Este arquivo contém configurações específicas do projeto atual
+
+# Configurações do modelo
+model:
+  name: "gemini-2.5-flash-preview-05-20"
+  thinking_budget_default: 8192
+  thinking_budget_max: 24576
+  temperature: 0.3
+  max_output_tokens: 8192
+  context_window: 1048576
+
+# Configurações do usuário
+user:
+  mode: "non-programmer"
+  language: "portuguese"
+  timezone: "America/Sao_Paulo"
+  preferred_editor: "auto"
+
+# Configurações do projeto
+project:
+  type: "continuous_development"
+  scan_on_start: true
+  auto_fix: true
+  preserve_style: true
+  backup_before_changes: true
+  git_integration: true
+  auto_commit: false
+
+# Configurações de comportamento
+behavior:
+  natural_language_only: true
+  auto_execute: true
+  show_progress: true
+  explain_simple: true
+  ask_only_essential: true
+  visual_feedback: true
+  thinking_mode: true
+  auto_compaction: true
+
+# Configurações avançadas
+advanced:
+  enable_cognition: true
+  auto_healing: true
+  learning_enabled: true
+  massive_context: true
+  performance_monitoring: true
+  memory_optimization: true
+
+# Configurações de segurança
+security:
+  permission_level: "moderate"
+  auto_approve_safe: true
+  require_confirmation_for: 
+    - "file_deletion"
+    - "git_operations"
+    - "system_commands"
+
+# Configurações de logging
+logging:
+  level: "INFO"
+  file_logging: true
+  console_logging: true
+  performance_logging: true
+
+# Configurações de integração
+integrations:
+  mcp_enabled: true
+  bedrock_enabled: false
+  enterprise_features: false
+
+# Última atualização
+metadata:
+  created: "2025-06-03"
+  version: "1.0.0-supreme"
+  auto_generated: true
