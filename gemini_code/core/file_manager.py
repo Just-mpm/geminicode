@@ -15,6 +15,8 @@ import ast
 import importlib.util
 
 from .gemini_client import GeminiClient
+import logging
+import traceback
 
 
 @dataclass
@@ -34,16 +36,52 @@ class FileOperation:
 class FileManagementSystem:
     """Sistema completo de manipulação de arquivos"""
     
-    def __init__(self, gemini_client: GeminiClient, project_root: Optional[Path] = None):
+    def __init__(self, gemini_client: GeminiClient, project_root: Optional[Path] = None, logger: Optional[logging.Logger] = None):
         self.gemini_client = gemini_client
         self.project_root = project_root or Path.cwd()
         self.operations_history: List[FileOperation] = []
         self.backup_dir = self.project_root / ".gemini_code" / "backups"
         self.templates_dir = Path(__file__).parent.parent / "templates"
         
+        # Configura logger
+        self.logger = logger or self._setup_logger()
+        
         # Inicializa diretórios
-        self.backup_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            self.backup_dir.mkdir(parents=True, exist_ok=True)
+            self.logger.info(f"Backup directory initialized: {self.backup_dir}")
+        except Exception as e:
+            self.logger.error(f"Failed to create backup directory: {e}", exc_info=True)
+            
         self._ensure_templates_dir()
+    
+    def _setup_logger(self) -> logging.Logger:
+        """Configura logger padrão"""
+        logger = logging.getLogger('FileManagementSystem')
+        logger.setLevel(logging.DEBUG)
+        
+        # Handler para arquivo
+        log_dir = self.project_root / ".gemini_code" / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        
+        file_handler = logging.FileHandler(log_dir / "file_manager.log")
+        file_handler.setLevel(logging.DEBUG)
+        
+        # Handler para console
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        
+        # Formato
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        file_handler.setFormatter(formatter)
+        console_handler.setFormatter(formatter)
+        
+        logger.addHandler(file_handler)
+        logger.addHandler(console_handler)
+        
+        return logger
     
     def _ensure_templates_dir(self) -> None:
         """Garante que o diretório de templates existe."""
@@ -500,22 +538,62 @@ result = await {agent_name}_agent.process_message(message)
             return False
     
     def create_file(self, file_path: Path, content: str, backup: bool = True) -> bool:
-        """Cria novo arquivo"""
+        """Cria novo arquivo com validação e tratamento de erros aprimorado"""
         try:
-            file_path = Path(file_path)
+            file_path = Path(file_path).resolve()
+            self.logger.info(f"Creating file: {file_path}")
+            
+            # Validações
+            if not content:
+                self.logger.warning(f"Empty content provided for {file_path}")
+                # Permite conteúdo vazio mas avisa
+            
+            # Verifica se o caminho é seguro (não sai do projeto)
+            try:
+                file_path.relative_to(self.project_root)
+            except ValueError:
+                # Permite criar fora do projeto mas avisa
+                self.logger.warning(f"Creating file outside project root: {file_path}")
             
             # Verifica se já existe
             if file_path.exists():
                 if backup:
                     self._backup_file(file_path)
+                self.logger.info(f"File {file_path} already exists. Overwriting...")
                 print(f"⚠️  Arquivo {file_path} já existe. Sobrescrevendo...")
             
             # Cria diretórios se necessário
-            file_path.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                self.logger.debug(f"Created parent directories for {file_path}")
+            except PermissionError:
+                self.logger.error(f"Permission denied creating directories for {file_path}")
+                print(f"❌ Sem permissão para criar diretório: {file_path.parent}")
+                return False
+            except Exception as e:
+                self.logger.error(f"Failed to create parent directories: {e}", exc_info=True)
+                print(f"❌ Erro ao criar diretórios: {e}")
+                return False
             
             # Escreve arquivo
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(content)
+            try:
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write(content)
+                self.logger.debug(f"File written successfully: {file_path} ({len(content)} bytes)")
+            except PermissionError:
+                self.logger.error(f"Permission denied writing to {file_path}")
+                print(f"❌ Sem permissão para escrever em: {file_path}")
+                return False
+            except UnicodeEncodeError as e:
+                self.logger.error(f"Encoding error writing {file_path}: {e}")
+                print(f"❌ Erro de codificação ao escrever {file_path}")
+                return False
+            
+            # Verifica se foi criado com sucesso
+            if not file_path.exists():
+                self.logger.error(f"File not found after creation: {file_path}")
+                print(f"❌ Arquivo não foi criado: {file_path}")
+                return False
             
             # Registra operação
             self.operations_history.append(FileOperation(
@@ -524,27 +602,76 @@ result = await {agent_name}_agent.process_message(message)
                 content=content
             ))
             
+            self.logger.info(f"File created successfully: {file_path}")
             print(f"✅ Arquivo criado: {file_path}")
             return True
             
         except Exception as e:
+            self.logger.error(f"Unexpected error creating {file_path}: {e}", exc_info=True)
             print(f"❌ Erro ao criar arquivo {file_path}: {e}")
             return False
     
     def read_file(self, file_path: Path) -> str:
-        """Lê conteúdo de arquivo"""
-        file_path = Path(file_path)
-        with open(file_path, 'r', encoding='utf-8') as f:
-            return f.read()
+        """Lê conteúdo de arquivo com tratamento de erros"""
+        try:
+            file_path = Path(file_path).resolve()
+            self.logger.debug(f"Reading file: {file_path}")
+            
+            if not file_path.exists():
+                raise FileNotFoundError(f"File not found: {file_path}")
+                
+            if not file_path.is_file():
+                raise ValueError(f"Not a file: {file_path}")
+            
+            # Tenta diferentes encodings
+            encodings = ['utf-8', 'latin-1', 'cp1252']
+            
+            for encoding in encodings:
+                try:
+                    with open(file_path, 'r', encoding=encoding) as f:
+                        content = f.read()
+                        self.logger.debug(f"Successfully read {file_path} with {encoding} encoding")
+                        return content
+                except UnicodeDecodeError:
+                    continue
+                    
+            # Se falhou com todos encodings
+            self.logger.error(f"Could not decode {file_path} with any encoding")
+            raise UnicodeDecodeError("Unable to decode file with available encodings")
+            
+        except Exception as e:
+            self.logger.error(f"Error reading {file_path}: {e}", exc_info=True)
+            raise
     
     def write_file(self, file_path: Path, content: str, backup: bool = True) -> bool:
-        """Escreve em arquivo existente"""
+        """Escreve em arquivo existente com validação"""
         try:
-            file_path = Path(file_path)
+            file_path = Path(file_path).resolve()
+            self.logger.info(f"Writing to file: {file_path}")
             
-            if backup and file_path.exists():
-                self._backup_file(file_path)
+            # Verifica se arquivo existe
+            if not file_path.exists():
+                self.logger.warning(f"File does not exist, creating new: {file_path}")
+                return self.create_file(file_path, content, backup=False)
             
+            # Backup se necessário
+            if backup:
+                if not self._backup_file(file_path):
+                    self.logger.warning("Backup failed but continuing with write")
+            
+            # Lê conteúdo atual para comparar
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    old_content = f.read()
+                    
+                if old_content == content:
+                    self.logger.info(f"No changes needed for {file_path}")
+                    print(f"ℹ️ Arquivo {file_path} já está atualizado")
+                    return True
+            except Exception as e:
+                self.logger.warning(f"Could not read existing file for comparison: {e}")
+            
+            # Escreve novo conteúdo
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(content)
             
@@ -555,9 +682,16 @@ result = await {agent_name}_agent.process_message(message)
                 content=content
             ))
             
+            self.logger.info(f"File updated successfully: {file_path}")
+            print(f"✅ Arquivo atualizado: {file_path}")
             return True
             
+        except PermissionError:
+            self.logger.error(f"Permission denied writing to {file_path}")
+            print(f"❌ Sem permissão para escrever em: {file_path}")
+            return False
         except Exception as e:
+            self.logger.error(f"Error writing to {file_path}: {e}", exc_info=True)
             print(f"❌ Erro ao escrever arquivo {file_path}: {e}")
             return False
     

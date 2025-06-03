@@ -189,19 +189,36 @@ Modifique o código baseado no pedido do usuário:
 "{intent.original_text}"
 
 Contexto do projeto: {self.project._detect_project_type()}
-Entidades identificadas: {intent.entities}
-Modificadores: {intent.modifiers}
+Diretório atual: {Path.cwd()}
 
-Retorne:
-1. Arquivos que precisam ser modificados
-2. Mudanças específicas a fazer
-3. Código atualizado
+Para cada arquivo que precisa ser modificado, retorne:
+FILE_PATH: caminho/do/arquivo.ext
+OPERATION: modify
+OLD_STRING: |
+código antigo exato
+|
+NEW_STRING: |
+código novo
+|
+---
+
+Se precisar ler um arquivo primeiro, use:
+READ_FILE: caminho/do/arquivo.ext
+---
 """
         
         with self.console.status("[cyan]Analisando modificações necessárias...[/cyan]"):
             response = await self.gemini.generate_response(prompt, self.context)
         
-        self._display_gemini_response(response)
+        # Processa operações de arquivo
+        files_modified = await self._process_file_operations(response, 'modify')
+        
+        if files_modified:
+            self.console.print(f"\n[green]✅ {len(files_modified)} arquivo(s) modificado(s) com sucesso![/green]")
+            for file in files_modified:
+                self.console.print(f"  • {file}")
+        else:
+            self._display_gemini_response(response)
     
     async def _handle_delete(self, intent: Intent):
         """Processa deleção"""
@@ -500,21 +517,34 @@ Crie código baseado no pedido:
 
 Entidades identificadas: {entities_desc}
 Tipo de projeto: {self.project._detect_project_type() if self.project.structure else 'novo'}
+Diretório atual: {Path.cwd()}
 
-Forneça:
-1. Código completo
-2. Onde salvar o arquivo
-3. Modificações necessárias em outros arquivos
+Retorne no formato:
+FILE_PATH: caminho/do/arquivo.ext
+---
+[conteúdo do arquivo]
+---
+
+Se precisar criar múltiplos arquivos, use o mesmo formato para cada um.
 """
         
         with self.console.status("[cyan]Gerando código...[/cyan]"):
             response = await self.gemini.generate_response(
                 prompt, 
                 self.context,
-                thinking_budget=16384  # Mais thinking para criação
+                thinking_budget=16384
             )
         
-        self._display_gemini_response(response)
+        # Extrai arquivos para criar
+        files_created = await self._process_file_operations(response, 'create')
+        
+        if files_created:
+            self.console.print(f"\n[green]✅ {len(files_created)} arquivo(s) criado(s) com sucesso![/green]")
+            for file in files_created:
+                self.console.print(f"  • {file}")
+        else:
+            # Se não conseguiu extrair, mostra resposta original
+            self._display_gemini_response(response)
     
     async def _use_gemini_for_analysis(self, intent: Intent):
         """Usa Gemini para análise específica"""
@@ -621,6 +651,110 @@ Use analogias e exemplos quando apropriado.
                     result['files_to_create'].append(file_path)
         
         return result
+    
+    async def _process_file_operations(self, response: str, default_op: str = 'create') -> List[str]:
+        """Processa operações de arquivo da resposta do Gemini"""
+        files_processed = []
+        
+        # Padrões para extrair operações
+        patterns = {
+            'file_block': r'FILE_PATH:\s*([^\n]+)\n(.*?)(?=FILE_PATH:|READ_FILE:|$)',
+            'read_request': r'READ_FILE:\s*([^\n]+)',
+            'operation': r'OPERATION:\s*(\w+)',
+            'old_string': r'OLD_STRING:\s*\|(.*?)\|',
+            'new_string': r'NEW_STRING:\s*\|(.*?)\|',
+            'content_block': r'---\n(.*?)\n---'
+        }
+        
+        # Primeiro, processa requisições de leitura
+        for match in re.finditer(patterns['read_request'], response, re.MULTILINE):
+            file_path = match.group(1).strip()
+            try:
+                content = self.files.read_file(Path(file_path))
+                self.console.print(f"[dim]📖 Lido: {file_path}[/dim]")
+                # Adiciona ao contexto para o Gemini usar
+                self.context.append({
+                    'role': 'system',
+                    'content': f"Conteúdo de {file_path}:\n```\n{content}\n```",
+                    'timestamp': datetime.now().isoformat()
+                })
+            except Exception as e:
+                self.console.print(f"[yellow]⚠️ Não foi possível ler {file_path}: {e}[/yellow]")
+        
+        # Processa blocos de arquivo
+        for match in re.finditer(patterns['file_block'], response, re.DOTALL):
+            file_path = match.group(1).strip()
+            block_content = match.group(2)
+            
+            # Detecta operação
+            op_match = re.search(patterns['operation'], block_content)
+            operation = op_match.group(1).lower() if op_match else default_op
+            
+            try:
+                if operation == 'create':
+                    # Extrai conteúdo
+                    content_match = re.search(patterns['content_block'], block_content, re.DOTALL)
+                    if content_match:
+                        content = content_match.group(1).strip()
+                    else:
+                        # Tenta extrair conteúdo após FILE_PATH
+                        content = block_content.strip()
+                        # Remove marcadores conhecidos
+                        for marker in ['OPERATION:', '---']:
+                            if marker in content:
+                                content = content.split(marker)[0].strip()
+                    
+                    if content:
+                        success = self.files.create_file(Path(file_path), content)
+                        if success:
+                            files_processed.append(file_path)
+                    
+                elif operation == 'modify':
+                    # Extrai old_string e new_string
+                    old_match = re.search(patterns['old_string'], block_content, re.DOTALL)
+                    new_match = re.search(patterns['new_string'], block_content, re.DOTALL)
+                    
+                    if old_match and new_match:
+                        old_string = old_match.group(1).strip()
+                        new_string = new_match.group(1).strip()
+                        
+                        # Lê arquivo atual
+                        current_content = self.files.read_file(Path(file_path))
+                        
+                        # Substitui
+                        if old_string in current_content:
+                            new_content = current_content.replace(old_string, new_string)
+                            success = self.files.write_file(Path(file_path), new_content)
+                            if success:
+                                files_processed.append(file_path)
+                        else:
+                            self.console.print(f"[yellow]⚠️ String não encontrada em {file_path}[/yellow]")
+                    
+                elif operation == 'delete':
+                    success = self.files.delete_file(Path(file_path))
+                    if success:
+                        files_processed.append(file_path)
+                        
+            except Exception as e:
+                self.console.print(f"[red]❌ Erro ao processar {file_path}: {e}[/red]")
+        
+        # Se não encontrou formato estruturado, tenta extrair do formato antigo
+        if not files_processed and default_op == 'create':
+            extracted = self._extract_code_and_instructions(response)
+            
+            # Tenta criar arquivos baseado em blocos de código
+            if extracted['code_blocks'] and extracted['files_to_create']:
+                for i, file_path in enumerate(extracted['files_to_create']):
+                    if i < len(extracted['code_blocks']):
+                        content = extracted['code_blocks'][i]['code']
+                        try:
+                            success = self.files.create_file(Path(file_path), content)
+                            if success:
+                                files_processed.append(file_path)
+                        except Exception as e:
+                            self.console.print(f"[red]❌ Erro ao criar {file_path}: {e}[/red]")
+        
+        return files_processed
     
     async def _check_workspace_commands(self, message: str) -> bool:
         """Verifica comandos relacionados a workspace/pasta"""

@@ -1,0 +1,131 @@
+# Configuração de Serviços do Gemini Code
+# Define dependências e configurações para cada componente
+
+services:
+  # Core Services
+  gemini_client:
+    class: gemini_code.core.gemini_client.GeminiClient
+    singleton: true
+    config:
+      timeout: 30
+      max_retries: 3
+  
+  nlp:
+    class: gemini_code.core.nlp_enhanced.NLPEnhanced
+    singleton: true
+    dependencies:
+      gemini_client: gemini_client
+  
+  memory_system:
+    class: gemini_code.core.memory_system.MemorySystem
+    singleton: true
+    config:
+      context_window: 50
+      cache_size: 1000
+  
+  # File Management
+  file_manager:
+    class: gemini_code.core.file_manager.FileManagementSystem
+    singleton: true
+    dependencies:
+      gemini_client: gemini_client
+    config:
+      backup_enabled: true
+      max_file_size_mb: 10
+  
+  workspace_manager:
+    class: gemini_code.core.workspace_manager.WorkspaceManager
+    singleton: true
+    dependencies:
+      gemini_client: gemini_client
+  
+  project_manager:
+    class: gemini_code.core.project_manager.ProjectManager
+    singleton: true
+    dependencies:
+      gemini_client: gemini_client
+  
+  # Database
+  db_manager:
+    class: gemini_code.database.database_manager.DatabaseManager
+    singleton: true
+    dependencies:
+      gemini_client: gemini_client
+    config:
+      db_path: .gemini_code/database.db
+  
+  # Monitoring & Security
+  monitor:
+    class: gemini_code.monitoring.continuous_monitor.ContinuousMonitor
+    singleton: true
+    dependencies:
+      gemini_client: gemini_client
+    config:
+      check_interval: 60
+      auto_fix: true
+  
+  security_scanner:
+    class: gemini_code.security.security_scanner.SecurityScanner
+    singleton: true
+    dependencies:
+      gemini_client: gemini_client
+    config:
+      scan_depth: 3
+      check_dependencies: true
+  
+  # Analytics
+  business_metrics:
+    class: gemini_code.metrics.business_metrics.BusinessMetrics
+    singleton: true
+    dependencies:
+      gemini_client: gemini_client
+      db_manager: db_manager
+  
+  analytics_engine:
+    class: gemini_code.metrics.analytics_engine.AnalyticsEngine
+    singleton: true
+    dependencies:
+      gemini_client: gemini_client
+      db_manager: db_manager
+  
+  # Team & Collaboration
+  team_manager:
+    class: gemini_code.collaboration.team_manager.TeamManager
+    singleton: true
+    dependencies:
+      gemini_client: gemini_client
+    config:
+      max_team_size: 50
+      
+  project_sharing:
+    class: gemini_code.collaboration.project_sharing.ProjectSharing
+    singleton: true
+    dependencies:
+      gemini_client: gemini_client
+      team_manager: team_manager
+  
+  real_time_sync:
+    class: gemini_code.collaboration.real_time_sync.RealTimeSync
+    singleton: true
+    dependencies:
+      gemini_client: gemini_client
+      team_manager: team_manager
+    config:
+      sync_interval: 5
+      conflict_resolution: auto
+
+# Feature Flags
+features:
+  dashboard_enabled: true
+  kpi_tracking_enabled: true
+  auto_backup: true
+  continuous_monitoring: false  # Desabilitado temporariamente
+  real_time_sync: false  # Desabilitado temporariamente
+
+# Logging Configuration
+logging:
+  level: INFO
+  file_path: .gemini_code/logs/gemini_code.log
+  max_size_mb: 10
+  backup_count: 5
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

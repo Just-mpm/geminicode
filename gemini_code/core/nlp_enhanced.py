@@ -55,6 +55,7 @@ class IntentType(Enum):
     RESTORE = "restore"
     CLEAN = "clean"
     UPDATE_DEPS = "update_dependencies"
+    DELETE = "delete"
     
     # Banco de Dados
     DATABASE_QUERY = "database_query"
@@ -148,13 +149,28 @@ class NLPEnhanced:
             
             # NAVEGAÇÃO - Pedidos diretos
             IntentType.NAVIGATE_FOLDER: [
-                (r'(abre?|vai?|entra?|acessa?)\s+.*\s*(pasta|diretório|folder)', 0.92),
-                (r'(pasta|diretório|folder)\s+([A-Z]:[\\\/][^\s]+|\/[^\s]+)', 0.95),
-                (r'^([A-Z]:[\\\/][^\s]+|\/[^\s]+)$', 0.95),  # Caminho direto sozinho
-                (r'(abra?|abre)\s+a?\s*pasta\s+([A-Z]:[\\\/][^\s]+)', 0.98),
-                (r'ir\s+para\s+(?:a\s+)?pasta', 0.90),
-                (r'navega\s+(?:para|até)\s+([A-Z]:[\\\/][^\s]+|\/[^\s]+)', 0.88),
-                (r'cd\s+([A-Z]:[\\\/][^\s]+|\/[^\s]+)', 0.95),
+                (r'(?:abre?|vai?|entra?|acessa?)\s+(?:a\s+)?(?:pasta|diretório|folder)\s+([A-Z]:[\\\/][^\s]+|\/[^\s]+)', 0.95),
+                (r'(?:vamos\s+)?trabalhar\s+(?:na|em)\s+(?:pasta\s+)?([A-Z]:[\\\/][^\s]+|\/[^\s]+)', 0.93),
+                (r'(?:muda|troca)\s+(?:para|pra)\s+(?:a\s+)?(?:pasta|diretório)\s+([A-Z]:[\\\/][^\s]+|\/[^\s]+)', 0.92),
+                (r'cd\s+([A-Z]:[\\\/][^\s]+|\/[^\s]+)', 0.98),
+                (r'navega\s+(?:para|até)\s+([A-Z]:[\\\/][^\s]+|\/[^\s]+)', 0.90),
+                # Removido o padrão que captura apenas caminhos sozinhos
+            ],
+            
+            IntentType.LIST_FILES: [
+                (r'(lista|listar|mostra|mostrar|exibe|exibir)\s+(os\s+)?arquivos?', 0.95),
+                (r'(quais|que)\s+arquivos?\s+(tem|existe|há)', 0.90),
+                (r'^ls\s*$', 0.98),
+                (r'^dir\s*$', 0.98),
+                (r'(mostra|lista)\s+(tudo|todos)', 0.85),
+                (r'(arquivos|files)\s+(da|na|no)\s+(pasta|diretório)', 0.88),
+            ],
+            
+            IntentType.SHOW_CONTENT: [
+                (r'(mostra|exibe|abre)\s+(?:o\s+)?(?:conteúdo|arquivo)\s+\w+', 0.90),
+                (r'(cat|type|more)\s+\w+', 0.95),
+                (r'(lê|ler|leia)\s+(?:o\s+)?arquivo\s+\w+', 0.88),
+                (r'(vê|ver|visualiza)\s+\w+\.\w+', 0.85),
             ],
             
             # GIT - Linguagem simples
@@ -166,8 +182,11 @@ class NLPEnhanced:
             
             IntentType.GIT_PUSH: [
                 (r'(envia|manda)\s+.*\s*(github|git|repositório|pro git)', 0.95),
+                (r'(enviar|mandar)\s+.*\s*(arquivo|arquivos|código|projeto)\s+.*\s*(github|git)', 0.93),
                 (r'(push|sobe|upload)', 0.98),
                 (r'(publica|compartilha)\s+.*\s*código', 0.85),
+                (r'(atualiza|update)\s+.*\s*(github|repositório)', 0.90),
+                (r'arquivos\s+.*\s*(atualizados?|novos?)\s+.*\s*(github|git)', 0.88),
             ],
             
             IntentType.ROLLBACK: [
@@ -215,8 +234,8 @@ class NLPEnhanced:
             
             # EMERGÊNCIA - Pânico
             IntentType.EMERGENCY: [
-                (r'(socorro|ajuda|help)', 0.98),
-                (r'(urgente|emergência|crítico)', 0.95),
+                (r'(socorro|emergência|crítico)', 0.95),
+                (r'(urgente)\s+(socorro|ajuda|problema)', 0.93),
                 (r'(cliente\s+furioso|chefe\s+bravo|problema\s+sério)', 0.92),
             ],
             
@@ -240,6 +259,23 @@ class NLPEnhanced:
             IntentType.CLEAN: [
                 (r'(limpa|remove)\s+.*\s*(cache|lixo|desnecessário)', 0.90),
                 (r'(organiza|arruma)\s+.*\s*(projeto|código|arquivos)', 0.85),
+            ],
+            
+            IntentType.DELETE: [
+                (r'(apague?|apagar|delete|remov[ae]|exclu[ai])\s+.*\s*(arquivo|pasta|diretório)\s+(?:chamad[oa]\s+)?(\w[\w\-\.]*)', 0.95),
+                (r'(apague?|apagar|delete|remov[ae]|exclu[ai])\s+(?:o\s+|a\s+|um\s+|uma\s+)?(\w[\w\-\.]*)', 0.92),
+                (r'(quero|preciso|pode)\s+(apagar|deletar|remover|excluir)\s+.*\s*(\w[\w\-\.]*)', 0.90),
+                (r'(arquivo|pasta)\s+(\w[\w\-\.]*)\s+.*(apague?|delete|remov[ae])', 0.88),
+            ],
+            
+            # AJUDA/INFORMAÇÃO
+            IntentType.QUESTION: [
+                (r'^(ajuda|help)$', 0.95),
+                (r'(preciso\s+de\s+ajuda|me\s+ajuda)', 0.90),
+                (r'(como\s+faço|como\s+fazer|como\s+que)', 0.88),
+                (r'(o\s+que\s+é|qual\s+é|quais\s+são)', 0.85),
+                (r'(pode\s+me\s+ajudar|consegue\s+ajudar)', 0.87),
+                (r'\?$', 0.70),  # Qualquer pergunta com interrogação
             ],
         }
     
@@ -309,6 +345,15 @@ class NLPEnhanced:
         # Remove espaços extras mas mantém estrutura
         normalized = ' '.join(text.split())
         
+        # Salva caminhos e nomes de arquivos antes de normalizar
+        preserved_items = []
+        path_pattern = r'([A-Z]:[\\\/][^\s]+|\/[^\s]+|\w+\.\w+)'
+        for match in re.finditer(path_pattern, normalized, re.IGNORECASE):
+            preserved_items.append((match.start(), match.end(), match.group()))
+        
+        # Converte para lowercase primeiro
+        result = normalized.lower()
+        
         # Padroniza algumas variações comuns
         replacements = {
             'tá': 'está',
@@ -321,16 +366,34 @@ class NLPEnhanced:
         }
         
         for old, new in replacements.items():
-            normalized = re.sub(rf'\b{old}\b', new, normalized, flags=re.IGNORECASE)
+            result = re.sub(rf'\b{old}\b', new, result)
         
-        return normalized.lower()
+        # Restaura itens preservados com sua capitalização original
+        for start, end, original in sorted(preserved_items, key=lambda x: x[0], reverse=True):
+            result = result[:start] + original + result[end:]
+        
+        return result
     
     def _detect_intent(self, text: str) -> Tuple[IntentType, float]:
         """Detecta intenção com confiança."""
         best_intent = IntentType.UNKNOWN
         best_confidence = 0.0
         
+        # Para NAVIGATE_FOLDER, primeiro verifica se realmente há um caminho
+        has_valid_path = False
+        if any(indicator in text.lower() for indicator in ['pasta', 'diretório', 'folder', 'trabalhar', 'cd']):
+            # Verifica se há um caminho válido
+            path_check = re.search(r'([A-Z]:[\\\/][^\s]+|\/[^\s]+|"[^"]+"|\'[^\']+\')', text, re.IGNORECASE)
+            if path_check:
+                path_candidate = path_check.group(1).strip('"\'')
+                if ('\\' in path_candidate or '/' in path_candidate) and len(path_candidate) > 2:
+                    has_valid_path = True
+        
         for intent_type, patterns in self.patterns.items():
+            # Skip NAVIGATE_FOLDER se não há caminho válido
+            if intent_type == IntentType.NAVIGATE_FOLDER and not has_valid_path:
+                continue
+                
             for pattern, base_confidence in patterns:
                 if re.search(pattern, text, re.IGNORECASE):
                     # Ajusta confiança baseado em contexto
@@ -342,7 +405,16 @@ class NLPEnhanced:
         
         # Se confiança muito baixa, verifica contexto histórico
         if best_confidence < 0.5 and self.conversation_history:
-            best_intent, best_confidence = self._infer_from_history(text)
+            hist_intent, hist_confidence = self._infer_from_history(text)
+            if hist_confidence > best_confidence:
+                best_intent = hist_intent
+                best_confidence = hist_confidence
+        
+        # Se ainda está muito baixo, verifica se é uma pergunta genérica
+        if best_confidence < 0.3:
+            if any(q in text.lower() for q in ['?', 'como', 'o que', 'qual', 'quando', 'onde']):
+                best_intent = IntentType.QUESTION
+                best_confidence = 0.6
         
         return best_intent, best_confidence
     
@@ -378,11 +450,38 @@ class NLPEnhanced:
                 entities['name'] = match.group(1)
         
         elif intent_type == IntentType.NAVIGATE_FOLDER:
-            # Procura caminhos
-            path_match = re.search(r'([A-Z]:[\\\/][^\s?]+|\/[^\s?]+)', text, re.IGNORECASE)
-            if path_match:
-                entities['path'] = path_match.group(1).strip()
+            # Procura caminhos com padrões mais específicos
+            path_patterns = [
+                r'(?:pasta|diretório|folder)\s+([A-Z]:[\\\/][^\s]+|\/[^\s]+)',
+                r'(?:trabalhar\s+(?:na|em)\s+)([A-Z]:[\\\/][^\s]+|\/[^\s]+)',
+                r'cd\s+([A-Z]:[\\\/][^\s]+|\/[^\s]+)',
+                r'"([^"]+)"',  # Caminhos entre aspas
+                r"'([^']+)'",  # Caminhos entre aspas simples
+            ]
+            
+            for pattern in path_patterns:
+                path_match = re.search(pattern, text, re.IGNORECASE)
+                if path_match:
+                    path = path_match.group(1).strip()
+                    # Valida se parece um caminho real
+                    if ('\\' in path or '/' in path) and len(path) > 2:
+                        entities['path'] = path
+                        break
         
+        elif intent_type == IntentType.DELETE:
+            # Extrai nome do arquivo/pasta a deletar
+            patterns = [
+                r'(?:arquivo|pasta)\s+(?:chamad[oa]\s+)?(\w[\w\-\.]+)',
+                r'(?:apague?|apagar|delete|remov[ae]|exclu[ai])\s+(?:o\s+|a\s+|um\s+|uma\s+)?(?:arquivo\s+|pasta\s+)?(\w[\w\-\.]+)',
+                r'(\w+\.\w+)',  # arquivos com extensão
+            ]
+            
+            for pattern in patterns:
+                match = re.search(pattern, text, re.IGNORECASE)
+                if match:
+                    entities['target'] = match.group(1)
+                    break
+                    
         elif intent_type in [IntentType.DATABASE_QUERY, IntentType.DATABASE_CREATE]:
             # Extrai nomes de tabela/campo
             table_match = re.search(r'tabela\s+(?:de\s+)?(\w+)', text, re.IGNORECASE)
@@ -464,13 +563,23 @@ class NLPEnhanced:
         # Pega última intenção
         last_intent = self.conversation_history[-1]
         
+        # Evita repetir navegação de pasta sem novo caminho
+        if last_intent.type == IntentType.NAVIGATE_FOLDER:
+            # Verifica se há um novo caminho no texto atual
+            path_check = re.search(r'([A-Z]:[\\\/][^\s]+|\/[^\s]+)', text, re.IGNORECASE)
+            if not path_check:
+                # Não repete navegação sem novo caminho
+                return IntentType.UNKNOWN, 0.0
+        
         # Se é resposta curta, provavelmente é relacionada
         if len(text.split()) <= 3:
             # Respostas afirmativas
-            if text in ['sim', 'isso', 'ok', 'pode', 'vai', 'beleza']:
-                return last_intent.type, 0.7
+            if text.lower() in ['sim', 'isso', 'ok', 'pode', 'vai', 'beleza']:
+                # Não infere navegação de pasta por respostas afirmativas
+                if last_intent.type != IntentType.NAVIGATE_FOLDER:
+                    return last_intent.type, 0.7
             # Respostas negativas
-            elif text in ['não', 'nao', 'cancela', 'deixa']:
+            elif text.lower() in ['não', 'nao', 'cancela', 'deixa']:
                 return IntentType.CONFIRMATION, 0.8
         
         return IntentType.UNKNOWN, 0.0
@@ -500,8 +609,15 @@ class NLPEnhanced:
         """Identifica intenção do texto (compatibilidade com main.py)."""
         intent = self.analyze(text)
         
+        # Garante que a confiança mínima seja 1% se não for UNKNOWN
+        confidence_percent = int(intent.confidence * 100)
+        if intent.type != IntentType.UNKNOWN and confidence_percent == 0:
+            confidence_percent = 1
+        
         return {
             'intent': intent.type.value,
-            'confidence': int(intent.confidence * 100),
-            'entities': intent.entities
+            'confidence': confidence_percent,
+            'entities': intent.entities,
+            'sentiment': intent.sentiment,
+            'context_clues': intent.context_clues
         }
