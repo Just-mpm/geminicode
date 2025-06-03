@@ -808,6 +808,25 @@ result = await {agent_name}_agent.process_message(message)
         except Exception as e:
             print(f"⚠️  Erro ao criar backup: {e}")
     
+    def create_backup(self, file_path: str) -> Optional[str]:
+        """Método público para criar backup de arquivo."""
+        try:
+            file_path_obj = Path(file_path)
+            if not file_path_obj.exists():
+                return None
+                
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_path = self.backup_dir / f"{file_path_obj.name}.{timestamp}.bak"
+            
+            backup_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(str(file_path_obj), str(backup_path))
+            
+            return str(backup_path)
+            
+        except Exception as e:
+            self.logger.error(f"Erro ao criar backup: {e}")
+            return None
+    
     def smart_file_operations(self, command: str) -> Dict[str, Any]:
         """Executa operações de arquivo baseadas em comando natural"""
         results = {

@@ -156,7 +156,7 @@ class GeminiCodeMasterSystem:
         
         # File manager
         from ..core.file_manager import FileManagementSystem
-        self.file_manager = FileManagementSystem(str(self.project_path))
+        self.file_manager = FileManagementSystem(self.gemini_client, Path(self.project_path))
         
         # Project manager
         self.project_manager = ProjectManager(str(self.project_path))
