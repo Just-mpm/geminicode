@@ -97,8 +97,14 @@ class GeminiClient:
             genai.configure(api_key=api_key)
             # Valida se a API key é válida tentando listar modelos
             list(genai.list_models())
+            print("✅ API Key do Gemini validada com sucesso!")
         except Exception as e:
-            print(f"⚠️ Erro ao configurar Gemini (chave inválida?): {e}")
+            error_msg = str(e)
+            if "API_KEY_INVALID" in error_msg or "not valid" in error_msg:
+                print(f"❌ API Key inválida. Verifique sua chave em: https://makersuite.google.com/app/apikey")
+                print(f"🔧 Configure com: setx GEMINI_API_KEY 'sua-nova-chave'")
+            else:
+                print(f"⚠️ Erro ao configurar Gemini: {e}")
             self.model = None
             return
         

@@ -203,7 +203,7 @@ class GeminiCodeMasterSystem:
         from ..cognition.problem_solver import ProblemSolver
         from ..cognition.learning_engine import LearningEngine
         
-        self.architectural_reasoning = ArchitecturalReasoning(self.gemini_client, self.project_manager)
+        self.architectural_reasoning = ArchitecturalReasoning(self.gemini_client, self.project_manager, self.file_manager)
         self.complexity_analyzer = ComplexityAnalyzer(self.gemini_client, self.project_manager)
         self.design_pattern_engine = DesignPatternEngine(self.gemini_client, self.project_manager)
         self.problem_solver = ProblemSolver(self.gemini_client, self.project_manager)

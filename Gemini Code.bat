@@ -53,7 +53,7 @@ echo.
 echo   [1] Iniciar REPL Interativo (Recomendado)
 echo   [2] Iniciar Interface Principal
 echo   [3] Executar Teste de Sistema
-hello   [4] Verificar Saúde do Sistema
+echo   [4] Verificar Saúde do Sistema
 echo   [5] Atualizar Dependências
 echo   [6] Configurar API Key
 echo   [7] Limpar Cache e Logs

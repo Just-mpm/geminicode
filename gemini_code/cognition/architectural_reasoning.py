@@ -78,11 +78,15 @@ class ArchitecturalReasoning:
     Analisa, compreende e melhora arquitetura de software.
     """
     
-    def __init__(self, gemini_client: GeminiClient, project_manager: ProjectManager):
+    def __init__(self, gemini_client: GeminiClient, project_manager: ProjectManager, file_manager=None):
         self.gemini = gemini_client
         self.project = project_manager
         self.logger = Logger()
-        self.code_navigator = CodeNavigator(project_manager)
+        # Se file_manager não foi fornecido, importa e cria uma instância
+        if file_manager is None:
+            from ..core.file_manager import FileManagementSystem
+            file_manager = FileManagementSystem(project_manager.project_path)
+        self.code_navigator = CodeNavigator(gemini_client, file_manager)
         
         # Cache de análises
         self.architecture_cache = {}
