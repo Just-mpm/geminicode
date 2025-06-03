@@ -1,11 +1,22 @@
 # Configuração padrão do Gemini Code
 model:
   name: "gemini-2.5-flash-preview-05-20"
-  thinking_budget_default: 8192
-  thinking_budget_max: 24576
-  temperature: 0.3
-  max_output_tokens: 8192
-  context_window: 1048576  # 1M tokens
+  # CONFIGURAÇÕES OTIMIZADAS - POTENCIAL MÁXIMO
+  max_input_tokens: 1000000     # 1M tokens - Contexto massivo ⚡
+  max_output_tokens: 32768      # 32K tokens - Respostas completas 🚀
+  context_window: 1000000       # Janela completa de contexto
+  
+  # THINKING MODE - RACIOCÍNIO TRANSPARENTE 🧠
+  thinking_mode: true           # Sempre ativo
+  thinking_budget_default: 16384  # Budget aumentado para raciocínio profundo
+  thinking_budget_max: 32768    # Máximo para casos muito complexos
+  show_reasoning: true          # Mostrar processo de raciocínio
+  reasoning_depth: "deep"        # Profundidade de análise
+  
+  # PARÂMETROS DE QUALIDADE
+  temperature: 0.1              # Mais determinístico
+  top_p: 0.8                   # Foco em respostas relevantes
+  top_k: 40                    # Vocabulário otimizado
   
 user:
   mode: "non-programmer"  # non-programmer, programmer, expert
@@ -52,6 +63,29 @@ security:
   
 interface:
   theme: "auto"  # light, dark, auto
-  show_thinking: false
+  show_thinking: true           # ATIVADO - Mostrar raciocínio 🧠
+  show_reasoning_process: true  # Processo detalhado
   compact_mode: false
   emoji_enabled: true
+  
+# CONFIGURAÇÕES AVANÇADAS - MÁXIMO POTENCIAL
+advanced:
+  # PROCESSAMENTO
+  batch_processing: true        # Múltiplos arquivos simultaneamente
+  parallel_analysis: true       # Análise paralela
+  massive_context: true         # Usar todo contexto disponível
+  
+  # PERFORMANCE
+  caching: "aggressive"          # Cache agressivo
+  preload_project: true         # Carrega projeto inteiro no contexto
+  smart_chunking: false         # Desabilitado - usar contexto completo
+  
+  # CAPACIDADES
+  enable_code_execution: true   # Execução de código
+  enable_file_operations: true  # Operações de arquivo
+  enable_system_commands: true  # Comandos do sistema
+  enable_git_operations: true   # Operações Git
+  
+  # SEGURANÇA OTIMIZADA
+  safety_settings: "minimal"     # Menos restritivo para desenvolvimento
+  allow_dangerous_operations: true  # Para operações de sistema necessárias

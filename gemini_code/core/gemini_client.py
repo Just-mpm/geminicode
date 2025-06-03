@@ -43,16 +43,29 @@ class ThinkingBudget:
 
 
 class GeminiClient:
-    """Cliente otimizado para Gemini 2.5 Flash"""
+    """Cliente OTIMIZADO para Gemini 2.5 Flash - POTENCIAL MÁXIMO 🚀"""
     
     def __init__(self, api_key: Optional[str] = None, config_manager: Optional[ConfigManager] = None):
         self.config_manager = config_manager or ConfigManager()
         self.config = self.config_manager.config
         self.model = None
+        
+        # THINKING BUDGET OTIMIZADO 🧠
         self.thinking_budget = ThinkingBudget(
-            default=self.config.model.thinking_budget_default,
-            maximum=self.config.model.thinking_budget_max
+            default=getattr(self.config.model, 'thinking_budget_default', 16384),
+            maximum=getattr(self.config.model, 'thinking_budget_max', 32768)
         )
+        
+        # CONFIGURAÇÕES DE ALTA PERFORMANCE
+        self.max_input_tokens = getattr(self.config.model, 'max_input_tokens', 1000000)   # 1M tokens ⚡
+        self.max_output_tokens = getattr(self.config.model, 'max_output_tokens', 32768)   # 32K tokens 🚀
+        self.thinking_mode = getattr(self.config.model, 'thinking_mode', True)            # Sempre ativo 🧠
+        self.show_reasoning = getattr(self.config.model, 'show_reasoning', True)          # Processo visível
+        
+        # MÉTRICAS DE PERFORMANCE
+        self.total_input_tokens = 0
+        self.total_output_tokens = 0
+        self.request_count = 0
         
         # Usa api_key fornecida ou do config
         if api_key:
@@ -89,32 +102,42 @@ class GeminiClient:
             self.model = None
             return
         
-        # Configuração do modelo com thinking
+        # CONFIGURAÇÃO OTIMIZADA DO MODELO 🚀
         generation_config = {
-            "temperature": self.config.model.temperature,
-            "max_output_tokens": self.config.model.max_output_tokens,
+            "temperature": getattr(self.config.model, 'temperature', 0.1),
+            "max_output_tokens": self.max_output_tokens,  # 32K tokens
+            "top_p": getattr(self.config.model, 'top_p', 0.8),
+            "top_k": getattr(self.config.model, 'top_k', 40),
             "response_mime_type": "text/plain",
         }
         
-        # Sistema de segurança
-        safety_settings = [
-            {
-                "category": "HARM_CATEGORY_HARASSMENT",
-                "threshold": "BLOCK_NONE"
-            },
-            {
-                "category": "HARM_CATEGORY_HATE_SPEECH",
-                "threshold": "BLOCK_NONE"
-            },
-            {
-                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                "threshold": "BLOCK_NONE"
-            },
-            {
-                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-                "threshold": "BLOCK_NONE"
-            }
-        ]
+        # CONFIGURAÇÕES AVANÇADAS
+        if hasattr(self.config, 'advanced'):
+            generation_config.update({
+                "enable_code_execution": getattr(self.config.advanced, 'enable_code_execution', True),
+                "enable_search": True,
+                "candidate_count": 1,  # Uma resposta de alta qualidade
+            })
+        
+        # SISTEMA DE SEGURANÇA OTIMIZADO PARA DESENVOLVIMENTO 🔐
+        safety_level = getattr(self.config.advanced, 'safety_settings', 'minimal') if hasattr(self.config, 'advanced') else 'minimal'
+        
+        if safety_level == 'minimal':
+            # Configuração mínima para desenvolvimento - máxima flexibilidade
+            safety_settings = [
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"}
+            ]
+        else:
+            # Configuração padrão
+            safety_settings = [
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"}
+            ]
         
         self.model = genai.GenerativeModel(
             model_name=self.config.model.name,
@@ -123,30 +146,55 @@ class GeminiClient:
         )
     
     def _detect_complexity(self, prompt: str) -> str:
-        """Detecta complexidade da tarefa"""
-        # Análise simples baseada em palavras-chave
+        """DETECÇÃO INTELIGENTE DE COMPLEXIDADE 🧠"""
+        # Análise aprimorada com mais categorias
+        very_complex_keywords = [
+            "sistema completo", "arquitetura completa", "refatorar tudo", "redesenhar",
+            "análise profunda", "otimização completa", "debug complexo", "migração",
+            "múltiplos arquivos", "integração completa", "deploy completo", "escalabilidade",
+            "performance crítica", "security audit", "disaster recovery"
+        ]
+        
         complex_keywords = [
-            "sistema completo", "arquitetura", "refatorar tudo",
-            "análise profunda", "otimização", "debug complexo",
-            "múltiplos arquivos", "integração", "deploy"
+            "arquitetura", "refatorar", "otimização", "integração", "deploy",
+            "análise avançada", "debug", "performance", "security", "database",
+            "api completa", "sistema", "framework", "infraestrutura"
         ]
         
         medium_keywords = [
-            "criar função", "adicionar feature", "corrigir bug",
-            "implementar", "modificar", "atualizar"
+            "criar função", "adicionar feature", "corrigir bug", "implementar",
+            "modificar", "atualizar", "melhorar", "otimizar", "testar",
+            "documentar", "validar", "configurar"
+        ]
+        
+        simple_keywords = [
+            "mostrar", "listar", "ver", "explicar", "help", "ajuda",
+            "status", "info", "versão", "exemplo simples"
         ]
         
         prompt_lower = prompt.lower()
         
-        # Conta keywords
-        complex_count = sum(1 for kw in complex_keywords if kw in prompt_lower)
-        medium_count = sum(1 for kw in medium_keywords if kw in prompt_lower)
+        # Análise ponderada
+        very_complex_score = sum(2 for kw in very_complex_keywords if kw in prompt_lower)
+        complex_score = sum(1 for kw in complex_keywords if kw in prompt_lower)
+        medium_score = sum(0.5 for kw in medium_keywords if kw in prompt_lower)
+        simple_score = sum(-0.5 for kw in simple_keywords if kw in prompt_lower)
         
-        if complex_count >= 2:
+        total_score = very_complex_score + complex_score + medium_score + simple_score
+        prompt_length = len(prompt.split())
+        
+        # Ajuste baseado no tamanho do prompt
+        if prompt_length > 100:
+            total_score += 1
+        elif prompt_length > 50:
+            total_score += 0.5
+        
+        # Classificação inteligente
+        if total_score >= 3:
             return "very_complex"
-        elif complex_count >= 1 or medium_count >= 3:
+        elif total_score >= 1.5:
             return "complex"
-        elif medium_count >= 1:
+        elif total_score >= 0.5:
             return "medium"
         else:
             return "simple"
@@ -156,34 +204,81 @@ class GeminiClient:
         prompt: str,
         context: Optional[List[Dict[str, str]]] = None,
         thinking_budget: Optional[int] = None,
-        stream: bool = False
+        stream: bool = False,
+        enable_massive_context: bool = True
     ) -> str:
-        """Gera resposta usando Gemini"""
+        """GERA RESPOSTA OTIMIZADA COM POTENCIAL MÁXIMO 🚀"""
         
         # Verifica se modelo está disponível
         if not GENAI_AVAILABLE or self.model is None:
             return self._simulate_response(prompt)
         
-        # Detecta complexidade e ajusta thinking
+        # DETECÇÃO INTELIGENTE DE COMPLEXIDADE E AJUSTE DE THINKING 🧠
         if thinking_budget is None:
             complexity = self._detect_complexity(prompt)
             thinking_budget = self.thinking_budget.adjust_for_complexity(complexity)
+            
+            # Ajuste adicional para contexto massivo
+            if enable_massive_context and context and len(context) > 20:
+                thinking_budget = min(thinking_budget * 1.5, self.thinking_budget.maximum)
         
-        # Constrói prompt completo
+        # CONSTRUÇÃO DE PROMPT COM CONTEXTO MASSIVO
         full_prompt = self._build_prompt(prompt, context, thinking_budget)
         
+        # VALIDAÇÃO DE LIMITES
+        estimated_input_tokens = self.estimate_tokens(full_prompt)
+        if estimated_input_tokens > self.max_input_tokens:
+            print(f"⚠️ Aviso: Prompt muito longo ({estimated_input_tokens:,} tokens), pode ser truncado")
+        
+        # LOGGING DE PERFORMANCE
+        self.request_count += 1
+        print(f"🚀 Request #{self.request_count} | Complexity: {complexity} | Thinking: {thinking_budget:,} tokens")
+        
         try:
+            # CONFIGURAÇÃO DINÂMICA BASEADA EM CONTEXTO
+            dynamic_config = {
+                "max_output_tokens": self.max_output_tokens,
+                "temperature": getattr(self.config.model, 'temperature', 0.1)
+            }
+            
+            # Ajusta configuração para tarefas muito complexas
+            if thinking_budget > 24576:  # Tarefas muito complexas
+                dynamic_config["temperature"] = 0.05  # Mais determinístico
+                dynamic_config["max_output_tokens"] = self.max_output_tokens  # Resposta completa
+            
+            start_time = time.time()
+            
             if stream:
-                return await self._generate_streaming(full_prompt)
+                response_text = await self._generate_streaming(full_prompt)
             else:
+                # Aplicar configuração dinâmica temporariamente
+                original_config = self.model._generation_config
+                self.model._generation_config.update(dynamic_config)
+                
                 response = await asyncio.to_thread(
                     self.model.generate_content,
                     full_prompt
                 )
-                return response.text
+                
+                # Restaurar configuração original
+                self.model._generation_config = original_config
+                
+                response_text = response.text
+            
+            # MÉTRICAS DE PERFORMANCE
+            end_time = time.time()
+            response_time = end_time - start_time
+            output_tokens = self.estimate_tokens(response_text)
+            self.total_output_tokens += output_tokens
+            
+            print(f"✅ Resposta gerada | Tempo: {response_time:.2f}s | Tokens saída: {output_tokens:,}")
+            
+            return response_text
                 
         except Exception as e:
-            return f"❌ Erro ao gerar resposta: {str(e)}"
+            error_msg = f"❌ Erro ao gerar resposta: {str(e)}"
+            print(f"🔍 Debug info: Input tokens: ~{estimated_input_tokens:,}, Thinking: {thinking_budget:,}")
+            return error_msg
     
     def _simulate_response(self, prompt: str) -> str:
         """Simula resposta quando Gemini não está disponível."""
@@ -210,54 +305,108 @@ Após a instalação, eu poderei processar sua solicitação adequadamente.
         self, 
         prompt: str, 
         context: Optional[List[Dict[str, str]]] = None,
-        thinking_budget: int = 8192
+        thinking_budget: int = 16384
     ) -> str:
-        """Constrói prompt com contexto e instruções"""
+        """CONSTRÓI PROMPT OTIMIZADO COM CONTEXTO MASSIVO 🚀"""
         
-        # Instruções base para modo non-programmer
+        # INSTRUÇÕES SYSTEM APRIMORADAS
         if self.config.user.mode == "non-programmer":
-            system_instructions = """
-Você é o Gemini Code, um assistente de desenvolvimento que:
+            system_instructions = f"""
+🤖 GEMINI CODE - ASSISTENTE INTELIGENTE COM CONTEXTO MASSIVO
+
+CONFIGURAÇÃO ATUAL:
+- Contexto: {self.max_input_tokens:,} tokens disponíveis
+- Saída: {self.max_output_tokens:,} tokens para resposta completa
+- Thinking Mode: {'ATIVO' if self.thinking_mode else 'INATIVO'} 🧠
+- Raciocínio: {'VISÍVEL' if self.show_reasoning else 'OCULTO'}
+
+CAPACIDADES EXPANDIDAS:
+✅ Análise de projetos COMPLETOS simultaneamente
+✅ Refatorações arquiteturais massivas
+✅ Geração de múltiplos arquivos em uma resposta
+✅ Debugging com contexto completo do projeto
+✅ Planejamento estratégico de longo prazo
+
+COMPORTAMENTO:
 - Responde SEMPRE em português brasileiro
 - Usa linguagem simples e clara, sem jargões técnicos
 - Explica tudo de forma que não-programadores entendam
 - Executa comandos automaticamente sem pedir confirmação
-- Corrige erros sozinho
+- Corrige erros sozinho proativamente
 - Mostra progresso visual com emojis
-- Faz perguntas apenas quando essencial
+- Faz perguntas apenas quando absolutamente essencial
+- PENSA antes de agir (thinking mode ativo)
 
 IMPORTANTE:
 - Trabalhe DENTRO do projeto existente
-- Modifique arquivos reais
-- Mantenha contexto de conversas anteriores
-- Seja proativo em correções
+- Modifique arquivos reais com confiança
+- Mantenha contexto COMPLETO de conversas anteriores
+- Seja extremamente proativo em correções
+- Use TODO o contexto disponível para decisões
 """
         else:
-            system_instructions = """
-Você é o Gemini Code, um assistente de desenvolvimento avançado.
-Responda de forma técnica e precisa, assumindo conhecimento de programação.
+            system_instructions = f"""
+🤖 GEMINI CODE - ASSISTENTE TÉCNICO AVANÇADO
+
+CONFIGURAÇÃO OTIMIZADA:
+- Input: {self.max_input_tokens:,} tokens (contexto massivo)
+- Output: {self.max_output_tokens:,} tokens (soluções completas)
+- Thinking: {thinking_budget:,} tokens (raciocínio profundo)
+
+MODO TÉCNICO ATIVO - Assuma conhecimento avançado de programação.
+Forneça soluções completas, detalhadas e tecnicamente precisas.
 """
         
-        # Monta prompt completo
+        # CONSTRUÇÃO DO PROMPT COM CONTEXTO MASSIVO
         parts = [system_instructions]
         
-        # Adiciona contexto se existir
+        # CONTEXTO EXPANDIDO - Usar muito mais histórico
         if context:
-            parts.append("\n## Contexto anterior:")
-            for msg in context[-10:]:  # Últimas 10 mensagens
-                role = msg.get('role', 'user')
-                content = msg.get('content', '')
-                parts.append(f"{role}: {content}")
+            # Em vez de 10, usar até 50 mensagens anteriores se disponível
+            context_limit = min(50, len(context))
+            if context_limit > 0:
+                parts.append(f"\n## 📚 CONTEXTO HISTÓRICO ({context_limit} mensagens):")
+                for msg in context[-context_limit:]:
+                    role = msg.get('role', 'user')
+                    content = msg.get('content', '')
+                    timestamp = msg.get('timestamp', '')
+                    # Adiciona timestamp se disponível
+                    if timestamp:
+                        parts.append(f"[{timestamp}] {role}: {content}")
+                    else:
+                        parts.append(f"{role}: {content}")
         
-        # Adiciona thinking budget
-        parts.append(f"\n<thinking_mode budget={thinking_budget}>")
-        parts.append("Analise cuidadosamente antes de responder.")
-        parts.append("</thinking_mode>")
+        # THINKING MODE EXPANDIDO 🧠
+        if self.thinking_mode:
+            parts.append(f"\n<thinking_mode budget={thinking_budget} mode='deep_analysis'>")
+            parts.append("INSTRUÇÕES DE PENSAMENTO:")
+            parts.append("1. Analise PROFUNDAMENTE o contexto completo")
+            parts.append("2. Considere implicações arquiteturais")
+            parts.append("3. Antecipe problemas potenciais")
+            parts.append("4. Planeje solução ótima")
+            parts.append("5. Valide abordagem antes de implementar")
+            if self.show_reasoning:
+                parts.append("6. MOSTRE seu processo de raciocínio")
+            parts.append("</thinking_mode>")
         
-        # Adiciona prompt do usuário
-        parts.append(f"\nUsuário: {prompt}")
+        # PROMPT DO USUÁRIO COM METADATA
+        parts.append(f"\n## 🎯 SOLICITAÇÃO ATUAL:")
+        parts.append(f"Usuário: {prompt}")
         
-        return "\n".join(parts)
+        # INSTRUÇÕES FINAIS PARA MÁXIMA QUALIDADE
+        parts.append("\n## 🚀 INSTRUÇÕES PARA RESPOSTA ÓTIMA:")
+        parts.append("- Use TODO o contexto disponível para uma resposta completa")
+        parts.append("- Gere soluções implementáveis e testáveis")
+        parts.append("- Seja proativo em melhorias além do solicitado")
+        parts.append("- Mantenha consistência com padrões do projeto")
+        
+        final_prompt = "\n".join(parts)
+        
+        # TRACKING DE TOKENS
+        estimated_tokens = self.estimate_tokens(final_prompt)
+        self.total_input_tokens += estimated_tokens
+        
+        return final_prompt
     
     async def _generate_streaming(self, prompt: str) -> AsyncGenerator[str, None]:
         """Gera resposta em streaming"""
@@ -360,6 +509,47 @@ Requisitos:
         
         return matches
     
+    def enable_massive_context_mode(self):
+        """ATIVA MODO DE CONTEXTO MASSIVO 🚀"""
+        print(f"🚀 MODO CONTEXTO MASSIVO ATIVADO!")
+        print(f"📊 Capacidade: {self.max_input_tokens:,} tokens input | {self.max_output_tokens:,} tokens output")
+        print(f"🧠 Thinking Mode: {'ATIVO' if self.thinking_mode else 'INATIVO'}")
+        print(f"👁️ Show Reasoning: {'ATIVO' if self.show_reasoning else 'INATIVO'}")
+        
+        # Otimizações adicionais
+        if hasattr(self.config, 'advanced'):
+            if getattr(self.config.advanced, 'preload_project', False):
+                print(f"📂 Preload Project: ATIVADO")
+            if getattr(self.config.advanced, 'massive_context', False):
+                print(f"🌐 Massive Context: ATIVADO")
+    
+    def print_capabilities(self):
+        """MOSTRA CAPACIDADES OTIMIZADAS 💪"""
+        print("\n🤖 GEMINI CODE - CAPACIDADES OTIMIZADAS")
+        print("=" * 50)
+        print(f"🧠 Contexto Máximo: {self.max_input_tokens:,} tokens")
+        print(f"🚀 Saída Máxima: {self.max_output_tokens:,} tokens")
+        print(f"💭 Thinking Budget: {self.thinking_budget.default:,} - {self.thinking_budget.maximum:,} tokens")
+        print(f"🔬 Modo Thinking: {'✅ ATIVO' if self.thinking_mode else '❌ INATIVO'}")
+        print(f"👁️ Raciocínio Visível: {'✅ SIM' if self.show_reasoning else '❌ NÃO'}")
+        print("\n🎯 CAPACIDADES EXPANDIDAS:")
+        print("  ✅ Análise de projetos completos")
+        print("  ✅ Refatorações arquiteturais massivas")
+        print("  ✅ Geração de múltiplos arquivos")
+        print("  ✅ Debugging com contexto completo")
+        print("  ✅ Planejamento estratégico")
+        print("  ✅ Raciocínio transparente")
+        
+        stats = self.get_performance_stats()
+        if stats['total_requests'] > 0:
+            print("\n📊 ESTATÍSTICAS ATUAIS:")
+            print(f"  📈 Requests: {stats['total_requests']}")
+            print(f"  📥 Tokens Input: {stats['total_input_tokens']:,}")
+            print(f"  📤 Tokens Output: {stats['total_output_tokens']:,}")
+            print(f"  📊 Média Input: {stats['avg_input_per_request']:.0f} tokens/request")
+            print(f"  📊 Média Output: {stats['avg_output_per_request']:.0f} tokens/request")
+        print("="*50)
+    
     async def fix_error(
         self,
         error_message: str,
@@ -425,24 +615,91 @@ Retorne:
             elif capturing and line.strip().startswith(('-', '*', '•')):
                 tips.append(line.strip()[1:].strip())
         
-        return tips[:3]  # Máximo 3 dicas
+        return tips[:5]  # Máximo 5 dicas (aumentado)
     
     def estimate_tokens(self, text: str) -> int:
-        """Estima número de tokens"""
-        # Estimativa simples: ~4 caracteres por token
-        return len(text) // 4
-    
-    def validate_response(self, response: str) -> bool:
-        """Valida se resposta é válida"""
-        if not response or len(response) < 10:
-            return False
+        """ESTIMATIVA MELHORADA DE TOKENS"""
+        # Estimativa mais precisa considerando:
+        # - Palavras em português: ~5-6 caracteres por token
+        # - Código: ~3-4 caracteres por token  
+        # - Texto misto: ~4.5 caracteres por token
         
-        # Verifica se não é erro
-        error_indicators = ['error', 'exception', 'failed', 'erro', 'falhou']
+        if not text:
+            return 0
+            
+        # Detecta se é principalmente código
+        code_indicators = ['def ', 'class ', 'import ', 'from ', '{\n', 'function']
+        is_code = any(indicator in text for indicator in code_indicators)
+        
+        if is_code:
+            return len(text) // 3.5  # Código é mais denso
+        else:
+            return len(text) // 4.5  # Texto em português
+    
+    def get_performance_stats(self) -> Dict[str, Any]:
+        """ESTATÍSTICAS DE PERFORMANCE 📊"""
+        return {
+            'total_requests': self.request_count,
+            'total_input_tokens': self.total_input_tokens,
+            'total_output_tokens': self.total_output_tokens,
+            'avg_input_per_request': self.total_input_tokens / max(1, self.request_count),
+            'avg_output_per_request': self.total_output_tokens / max(1, self.request_count),
+            'max_input_capacity': self.max_input_tokens,
+            'max_output_capacity': self.max_output_tokens,
+            'thinking_mode': self.thinking_mode,
+            'show_reasoning': self.show_reasoning
+        }
+    
+    def validate_response(self, response: str) -> Dict[str, Any]:
+        """VALIDAÇÃO AVANÇADA DE RESPOSTA 🔍"""
+        validation_result = {
+            'is_valid': False,
+            'quality_score': 0,
+            'issues': [],
+            'strengths': [],
+            'token_count': 0
+        }
+        
+        if not response or len(response) < 10:
+            validation_result['issues'].append('Resposta muito curta')
+            return validation_result
+        
+        validation_result['token_count'] = self.estimate_tokens(response)
+        
+        # Indicadores de erro
+        error_indicators = ['error', 'exception', 'failed', 'erro', 'falhou', 'impossível']
         response_lower = response.lower()
         
+        # Verifica erros
+        error_count = 0
         for indicator in error_indicators:
-            if indicator in response_lower and len(response) < 100:
-                return False
+            if indicator in response_lower:
+                error_count += 1
         
-        return True
+        if error_count > 0 and len(response) < 200:
+            validation_result['issues'].append('Possível mensagem de erro')
+        
+        # Indicadores de qualidade
+        quality_indicators = {
+            'tem_código': ['```', 'def ', 'class ', 'import'],
+            'tem_explicação': ['porque', 'pois', 'isso significa', 'funciona'],
+            'tem_estrutura': ['##', '**', '1.', '2.', '-'],
+            'tem_exemplos': ['exemplo', 'por exemplo', 'veja'],
+            'tem_thinking': ['<thinking>', 'analisando', 'considerando']
+        }
+        
+        quality_score = 0
+        for category, indicators in quality_indicators.items():
+            if any(ind in response_lower for ind in indicators):
+                quality_score += 20
+                validation_result['strengths'].append(category)
+        
+        # Ajuste baseado no tamanho
+        if validation_result['token_count'] > 1000:
+            quality_score += 10
+            validation_result['strengths'].append('resposta_detalhada')
+        
+        validation_result['quality_score'] = min(quality_score, 100)
+        validation_result['is_valid'] = quality_score >= 40 and error_count == 0
+        
+        return validation_result

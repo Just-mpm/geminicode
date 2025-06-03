@@ -16,6 +16,7 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).parent))
 
 from gemini_code.core.gemini_client import GeminiClient
+from gemini_code.core.enhanced_capabilities import EnhancedCapabilities, enable_enhanced_gemini_code
 from gemini_code.core.nlp_enhanced import NLPEnhanced
 from gemini_code.core.project_manager import ProjectManager
 from gemini_code.core.file_manager import FileManagementSystem
@@ -50,10 +51,11 @@ from gemini_code.collaboration.real_time_sync import RealTimeSync
 
 
 class GeminiCodeMain:
-    """Classe principal do Gemini Code."""
+    """Classe principal do Gemini Code com capacidades aprimoradas."""
     
     def __init__(self):
         self.gemini_client: Optional[GeminiClient] = None
+        self.enhanced_capabilities: Optional[EnhancedCapabilities] = None
         self.nlp: Optional[NLPEnhanced] = None
         self.project_manager: Optional[ProjectManager] = None
         self.file_manager: Optional[FileManagementSystem] = None
@@ -76,7 +78,8 @@ class GeminiCodeMain:
     
     async def initialize(self, api_key: Optional[str] = None) -> None:
         """Inicializa todos os componentes do sistema usando injeção de dependência."""
-        print("🚀 Inicializando Gemini Code...")
+        print("🚀 Inicializando Gemini Code com Capacidades Aprimoradas...")
+        print("🎯 Configuração: 1M tokens input | 32K tokens output | Thinking Mode Ativo")
         
         try:
             # Configura container de dependências
@@ -127,6 +130,9 @@ class GeminiCodeMain:
             # Inicializa serviços
             print("🔧 Inicializando GeminiClient...")
             self.gemini_client = container.get('gemini_client')
+            
+            print("🚀 Ativando Capacidades Aprimoradas...")
+            self.enhanced_capabilities = enable_enhanced_gemini_code(self.gemini_client)
             
             print("🔧 Inicializando NLPEnhanced...")
             self.nlp = container.get('nlp')
@@ -265,7 +271,20 @@ class GeminiCodeMain:
             if intent == 'create_project':
                 response = await self._handle_create_project(command, entities)
             elif intent == 'analyze_code' or intent == 'analyze_project':
-                response = await self._handle_analyze_code(command, entities)
+                # Verifica se deve usar análise massiva
+                if 'completa' in command.lower() or 'todo' in command.lower() or 'projeto inteiro' in command.lower():
+                    response = await self._handle_massive_analysis(command, entities)
+                else:
+                    response = await self._handle_analyze_code(command, entities)
+            # Intents para capacidades aprimoradas
+            elif intent == 'massive_analysis' or 'análise completa' in command.lower():
+                response = await self._handle_massive_analysis(command, entities)
+            elif intent == 'architectural_planning' or 'planejamento arquitetural' in command.lower():
+                response = await self._handle_architectural_planning(command, entities)
+            elif intent == 'massive_refactoring' or 'refatoração massiva' in command.lower():
+                response = await self._handle_massive_refactoring(command, entities)
+            elif intent == 'comprehensive_debugging' or 'debug completo' in command.lower():
+                response = await self._handle_comprehensive_debugging(command, entities)
             elif intent == 'generate_dashboard':
                 response = await self._handle_generate_dashboard(command, entities)
             elif intent == 'security_scan':
@@ -924,6 +943,140 @@ Responda em português brasileiro."""
             return f"❌ Sem permissão para apagar '{target}'. Verifique as permissões."
         except Exception as e:
             return f"❌ Erro ao apagar: {e}"
+    
+    # =================== HANDLERS PARA CAPACIDADES APRIMORADAS ===================
+    
+    async def _handle_massive_analysis(self, command: str, entities: dict) -> str:
+        """Análise completa de projeto com contexto massivo."""
+        try:
+            if not self.enhanced_capabilities:
+                return "❌ Capacidades aprimoradas não disponíveis"
+            
+            print("🔍 Iniciando análise massiva do projeto...")
+            print("📊 Usando contexto completo de 1M tokens")
+            
+            result = await self.enhanced_capabilities.analyze_entire_project(str(Path.cwd()))
+            
+            if 'error' in result:
+                return f"❌ Erro na análise: {result['error']}"
+            
+            stats = result['project_stats']
+            
+            return f"""✅ **ANÁLISE COMPLETA CONCLUÍDA**
+
+📊 **Estatísticas:**
+• Arquivos analisados: {stats['total_files']}
+• Linhas de código: {stats['total_lines']:,}
+• Tempo de análise: {stats['analysis_time']:.2f}s
+• Tokens utilizados: {stats['tokens_used']:,}
+
+🎯 **Análise Detalhada:**
+{result['detailed_analysis']}
+
+💡 Esta análise usou o contexto completo do projeto simultaneamente!
+⏱️ Timestamp: {result['timestamp']}"""
+            
+        except Exception as e:
+            return f"❌ Erro na análise massiva: {e}"
+    
+    async def _handle_architectural_planning(self, command: str, entities: dict) -> str:
+        """Planejamento arquitetural estratégico."""
+        try:
+            if not self.enhanced_capabilities:
+                return "❌ Capacidades aprimoradas não disponíveis"
+            
+            # Extrai requisitos do comando
+            requirements = command.replace('planejamento arquitetural', '').strip()
+            if not requirements:
+                requirements = "Planejar arquitetura para o projeto atual"
+            
+            print("🏗️ Iniciando planejamento arquitetural estratégico...")
+            print("🧠 Usando thinking mode para decisões de longo prazo")
+            
+            result = await self.enhanced_capabilities.architectural_planning(
+                requirements, 
+                f"Projeto localizado em: {Path.cwd()}"
+            )
+            
+            return f"""🏗️ **PLANEJAMENTO ARQUITETURAL CONCLUÍDO**
+
+📋 **Requisitos:** {result['requirements']}
+
+🎯 **Plano Estratégico:**
+{result['architectural_plan']}
+
+⏱️ Gerado em: {result['timestamp']}
+💡 Este plano foi criado com raciocínio profundo e contexto massivo!"""
+            
+        except Exception as e:
+            return f"❌ Erro no planejamento: {e}"
+    
+    async def _handle_massive_refactoring(self, command: str, entities: dict) -> str:
+        """Refatoração massiva de múltiplos arquivos."""
+        try:
+            if not self.enhanced_capabilities:
+                return "❌ Capacidades aprimoradas não disponíveis"
+            
+            # Extrai objetivo da refatoração
+            goal = command.replace('refatoração massiva', '').strip()
+            if not goal:
+                goal = "Melhorar qualidade e estrutura do código"
+            
+            print("🔧 Iniciando refatoração massiva...")
+            print("🎯 Analisando projeto completo para decisões consistentes")
+            
+            result = await self.enhanced_capabilities.massive_refactoring(
+                str(Path.cwd()), 
+                goal
+            )
+            
+            if 'error' in result:
+                return f"❌ Erro na refatoração: {result['error']}"
+            
+            return f"""🔧 **REFATORAÇÃO MASSIVA CONCLUÍDA**
+
+🎯 **Objetivo:** {result['refactoring_goal']}
+
+📋 **Plano de Refatoração:**
+{result['refactoring_plan']}
+
+⏱️ Executado em: {result['timestamp']}
+💡 Refatoração baseada em análise completa do projeto!"""
+            
+        except Exception as e:
+            return f"❌ Erro na refatoração: {e}"
+    
+    async def _handle_comprehensive_debugging(self, command: str, entities: dict) -> str:
+        """Debugging compreensivo com contexto completo."""
+        try:
+            if not self.enhanced_capabilities:
+                return "❌ Capacidades aprimoradas não disponíveis"
+            
+            # Extrai descrição do erro
+            error_desc = command.replace('debug completo', '').strip()
+            if not error_desc:
+                error_desc = "Análise geral de problemas no projeto"
+            
+            print("🐛 Iniciando debug compreensivo...")
+            print("🔍 Analisando todo o contexto do projeto")
+            
+            result = await self.enhanced_capabilities.comprehensive_debugging(
+                str(Path.cwd()), 
+                error_desc
+            )
+            
+            return f"""🐛 **DEBUG COMPREENSIVO CONCLUÍDO**
+
+❌ **Erro Analisado:** {result['error_description']}
+
+🔧 **Solução Completa:**
+{result['debug_solution']}
+
+⏱️ Executado em: {result['timestamp']}
+💡 Debug com acesso ao código completo do projeto!"""
+            
+        except Exception as e:
+            return f"❌ Erro no debug: {e}"
     
     async def interactive_mode(self) -> None:
         """Modo interativo de conversação com memória."""
