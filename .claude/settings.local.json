@@ -19,7 +19,8 @@
       "Bash(timeout:*)",
       "Bash(rg:*)",
       "Bash(git add:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git remote get-url:*)"
     ],
     "deny": []
   }

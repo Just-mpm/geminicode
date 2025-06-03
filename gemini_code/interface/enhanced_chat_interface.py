@@ -422,5 +422,58 @@ class EnhancedChatInterface:
     
     async def import_conversation(self, conversation_path: str):
         """Importa conversa de arquivo."""
-        # TODO: Implementar importação de conversas
-        pass
+        try:
+            import json
+            from datetime import datetime
+            
+            conversation_file = Path(conversation_path)
+            if not conversation_file.exists():
+                self.console.print(f"[red]❌ Arquivo não encontrado: {conversation_path}[/red]")
+                return False
+            
+            with open(conversation_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            # Validar estrutura do arquivo
+            required_fields = ['conversation_id', 'messages']
+            if not all(field in data for field in required_fields):
+                self.console.print("[red]❌ Formato de arquivo inválido[/red]")
+                return False
+            
+            # Importar mensagens para contexto atual
+            imported_messages = []
+            for msg_data in data['messages']:
+                message = {
+                    'role': msg_data.get('role', 'user'),
+                    'content': msg_data.get('content', ''),
+                    'timestamp': datetime.fromisoformat(msg_data.get('timestamp', datetime.now().isoformat())),
+                    'intent': msg_data.get('intent')
+                }
+                imported_messages.append(message)
+            
+            # Atualizar contexto atual
+            self.conversation_manager.current_context.messages.extend(imported_messages)
+            
+            # Limitar ao tamanho máximo do contexto
+            max_messages = self.conversation_manager.max_context_messages
+            if len(self.conversation_manager.current_context.messages) > max_messages:
+                self.conversation_manager.current_context.messages = \
+                    self.conversation_manager.current_context.messages[-max_messages:]
+            
+            # Importar histórico de intenções se disponível
+            if 'intent_history' in data:
+                self.conversation_manager.current_context.intent_history.extend(
+                    data['intent_history'][-10:]  # Últimas 10 intenções
+                )
+            
+            self.console.print(f"[green]✅ Conversa importada: {len(imported_messages)} mensagens[/green]")
+            self.console.print(f"[dim]ID da conversa: {data['conversation_id']}[/dim]")
+            
+            return True
+            
+        except json.JSONDecodeError:
+            self.console.print("[red]❌ Erro: Arquivo JSON inválido[/red]")
+            return False
+        except Exception as e:
+            self.console.print(f"[red]❌ Erro ao importar conversa: {e}[/red]")
+            return False
