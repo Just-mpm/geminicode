@@ -214,8 +214,8 @@ class GeminiClient:
             return self._simulate_response(prompt)
         
         # DETECÇÃO INTELIGENTE DE COMPLEXIDADE E AJUSTE DE THINKING 🧠
+        complexity = self._detect_complexity(prompt)  # Always detect complexity for logging
         if thinking_budget is None:
-            complexity = self._detect_complexity(prompt)
             thinking_budget = self.thinking_budget.adjust_for_complexity(complexity)
             
             # Ajuste adicional para contexto massivo
