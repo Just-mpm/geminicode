@@ -972,7 +972,125 @@ Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         for i, rec in enumerate(analysis['recommendations'][:10], 1):
             doc += f"{i}. **{rec['title']}** ({rec['priority']} priority)\n"
             doc += f"   - {rec['description']}\n"
-            doc += f"   - Effort: {rec['effort']}, Impact: {rec['impact']}\n\n"
+            doc += f"   - Effort: {rec['effort']}, Impact: {rec['impact']}\n
+    async def analyze_system_architecture(self, project_path: str) -> Dict[str, Any]:
+        """Análise completa da arquitetura do sistema."""
+        try:
+            analysis = {
+                'structure_analysis': await self._analyze_structure(project_path),
+                'pattern_detection': await self._detect_patterns(project_path), 
+                'quality_metrics': await self._calculate_metrics(project_path),
+                'recommendations': await self._generate_recommendations(project_path)
+            }
+            
+            self.logger.info(f"Análise arquitetural concluída para {project_path}")
+            return analysis
+            
+        except Exception as e:
+            self.logger.error(f"Erro na análise: {e}")
+            return {'error': str(e)}
+    
+    async def _analyze_structure(self, project_path: str) -> Dict[str, Any]:
+        """Analisa estrutura do projeto."""
+        try:
+            path_obj = Path(project_path)
+            python_files = list(path_obj.rglob("*.py"))
+            directories = [d for d in path_obj.iterdir() if d.is_dir()]
+            
+            return {
+                'total_files': len(python_files),
+                'total_directories': len(directories),
+                'directory_structure': [d.name for d in directories],
+                'complexity_estimate': 'high' if len(python_files) > 50 else 'medium' if len(python_files) > 20 else 'low'
+            }
+        except Exception as e:
+            return {'error': str(e)}
+    
+    async def _detect_patterns(self, project_path: str) -> List[str]:
+        """Detecta padrões arquiteturais."""
+        try:
+            path_obj = Path(project_path)
+            directories = [d.name.lower() for d in path_obj.iterdir() if d.is_dir()]
+            
+            patterns = []
+            
+            # Detecta MVC
+            if any(d in directories for d in ['models', 'views', 'controllers']):
+                patterns.append('MVC')
+            
+            # Detecta Layered
+            if any(d in directories for d in ['core', 'business', 'data']):
+                patterns.append('Layered Architecture')
+            
+            # Detecta Microservices
+            if any('service' in d for d in directories):
+                patterns.append('Microservices')
+            
+            return patterns
+            
+        except Exception as e:
+            self.logger.error(f"Erro na detecção de padrões: {e}")
+            return []
+    
+    async def _calculate_metrics(self, project_path: str) -> Dict[str, float]:
+        """Calcula métricas básicas de qualidade."""
+        try:
+            python_files = list(Path(project_path).rglob("*.py"))
+            if not python_files:
+                return {}
+            
+            total_lines = 0
+            total_functions = 0
+            
+            for file_path in python_files:
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    
+                    lines = len([line for line in content.split('\n') if line.strip()])
+                    functions = content.count('def ')
+                    
+                    total_lines += lines
+                    total_functions += functions
+                    
+                except Exception:
+                    continue
+            
+            return {
+                'avg_lines_per_file': total_lines / len(python_files),
+                'avg_functions_per_file': total_functions / len(python_files),
+                'total_files': len(python_files),
+                'maintainability_score': min(1.0, 50 / max(1, total_lines / len(python_files)))
+            }
+            
+        except Exception as e:
+            return {'error': str(e)}
+    
+    async def _generate_recommendations(self, project_path: str) -> List[str]:
+        """Gera recomendações de melhoria."""
+        try:
+            metrics = await self._calculate_metrics(project_path)
+            recommendations = []
+            
+            if metrics.get('avg_lines_per_file', 0) > 200:
+                recommendations.append('Considere dividir arquivos grandes em módulos menores')
+            
+            if metrics.get('avg_functions_per_file', 0) > 20:
+                recommendations.append('Muitas funções por arquivo - considere refatoração')
+            
+            patterns = await self._detect_patterns(project_path)
+            if not patterns:
+                recommendations.append('Implementar padrões arquiteturais para melhor organização')
+            
+            recommendations.append('Adicionar testes automatizados para garantir qualidade')
+            recommendations.append('Implementar documentação técnica abrangente')
+            
+            return recommendations
+            
+        except Exception as e:
+            return [f'Erro na geração de recomendações: {e}']
+
+\n\n"
         
         if 'ai_insights' in analysis and analysis['ai_insights'].get('overall_assessment'):
             doc += "## AI Analysis\n\n"

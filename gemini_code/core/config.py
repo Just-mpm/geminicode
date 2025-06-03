@@ -4,7 +4,7 @@ Sistema de configuração do Gemini Code
 import os
 import yaml
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, field
 import shutil
 
@@ -212,9 +212,70 @@ class ConfigManager:
         gitignore_path = self.config_dir / ".gitignore"
         if not gitignore_path.exists():
             with open(gitignore_path, 'w') as f:
-                f.write("memory.db\n*.log\n*.tmp\ncache/\n")
+                f.write("memory.db\n*.log\n")
+    def migrate_config(self, from_version: str = None) -> bool:
+        """Migra configuração entre versões."""
+        try:
+            current_version = getattr(self.config, 'version', '1.0.0')
+            
+            if from_version and from_version != current_version:
+                self.logger.info(f"Migrando configuração de {from_version} para {current_version}")
+                
+                # Aplica migrações específicas
+                if from_version < '1.0.0':
+                    self._migrate_to_v1_0_0()
+                
+                # Salva versão atualizada
+                self.config.version = current_version
+                self.save_config()
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Erro na migração: {e}")
+            return False
+    
+    def _migrate_to_v1_0_0(self):
+        """Migração específica para v1.0.0."""
+        # Adiciona configurações padrão se não existirem
+        if not hasattr(self.config, 'advanced'):
+            self.config.advanced = type('Advanced', (), {
+                'enable_cognition': True,
+                'auto_healing': True,
+                'learning_enabled': True,
+                'massive_context': True
+            })()
         
-        return True
+        if not hasattr(self.config, 'security'):
+            self.config.security = type('Security', (), {
+                'permission_level': 'moderate',
+                'auto_approve_safe': True
+            })()
+    
+    def validate_config(self) -> List[str]:
+        """Valida configuração atual."""
+        issues = []
+        
+        try:
+            # Verifica configurações essenciais
+            if not hasattr(self.config, 'model'):
+                issues.append("Configuração 'model' ausente")
+            
+            if not hasattr(self.config, 'user'):
+                issues.append("Configuração 'user' ausente")
+            
+            # Verifica configuração do modelo
+            if hasattr(self.config, 'model'):
+                if not hasattr(self.config.model, 'name'):
+                    issues.append("Nome do modelo não configurado")
+                
+                if not hasattr(self.config.model, 'temperature'):
+                    issues.append("Temperatura do modelo não configurada")
+            
+            return issues
+            
+        except Exception as e:
+            return [f"Erro na validação: {e}"]
     
     def get_api_key(self) -> Optional[str]:
         """Obtém API key do Gemini"""

@@ -3,6 +3,7 @@ Sistema de memória persistente que lembra de todas as conversas e decisões.
 """
 
 import json
+import time
 import sqlite3
 from datetime import datetime
 from typing import List, Dict, Any, Optional
@@ -359,7 +360,80 @@ class MemorySystem:
             summary += "\n🔍 **Padrões do Projeto:**\n"
             for pattern in patterns[:3]:
                 summary += f"- {pattern['pattern_type']}: {pattern['description']}\n"
-        
+    def compact_memory(self, max_entries: int = 1000):
+        """Compacta memória removendo entradas antigas."""
+        try:
+            # Compacta conversas antigas
+            conversations_file = self.memory_dir / "conversations.json"
+            
+            if conversations_file.exists():
+                with open(conversations_file, 'r', encoding='utf-8') as f:
+                    conversations = json.load(f)
+                
+                if len(conversations) > max_entries:
+                    # Mantém apenas as mais recentes
+                    sorted_conversations = sorted(
+                        conversations, 
+                        key=lambda x: x.get('timestamp', 0), 
+                        reverse=True
+                    )
+                    
+                    compacted = sorted_conversations[:max_entries]
+                    
+                    with open(conversations_file, 'w', encoding='utf-8') as f:
+                        json.dump(compacted, f, indent=2, ensure_ascii=False)
+                    
+                    removed = len(conversations) - len(compacted)
+                    self.logger.info(f"Memória compactada: {removed} conversas removidas")
+            
+            # Compacta contexto
+            context_file = self.memory_dir / "context.json"
+            if context_file.exists() and context_file.stat().st_size > 1024 * 1024:  # > 1MB
+                # Limpa contexto muito grande
+                with open(context_file, 'w', encoding='utf-8') as f:
+                    json.dump({"compacted": True, "timestamp": time.time()}, f)
+                
+                self.logger.info("Contexto grande compactado")
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Erro na compactação: {e}")
+            return False
+    
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """Retorna estatísticas de uso da memória."""
+        try:
+            stats = {
+                'total_files': 0,
+                'total_size_mb': 0.0,
+                'conversations_count': 0,
+                'context_size_kb': 0.0
+            }
+            
+            if self.memory_dir.exists():
+                for file_path in self.memory_dir.rglob("*"):
+                    if file_path.is_file():
+                        stats['total_files'] += 1
+                        size_bytes = file_path.stat().st_size
+                        stats['total_size_mb'] += size_bytes / (1024 * 1024)
+                        
+                        if file_path.name == 'conversations.json':
+                            try:
+                                with open(file_path, 'r', encoding='utf-8') as f:
+                                    conversations = json.load(f)
+                                    stats['conversations_count'] = len(conversations) if isinstance(conversations, list) else 1
+                            except:
+                                pass
+                        
+                        elif file_path.name == 'context.json':
+                            stats['context_size_kb'] = size_bytes / 1024
+            
+            return stats
+            
+        except Exception as e:
+            self.logger.error(f"Erro ao obter estatísticas: {e}")
+            return {'error': str(e)}
         return summary
     
     def export_memory(self, export_path: str = None) -> str:
