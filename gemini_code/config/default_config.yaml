@@ -1,0 +1,57 @@
+# Configuração padrão do Gemini Code
+model:
+  name: "gemini-2.5-flash-preview-05-20"
+  thinking_budget_default: 8192
+  thinking_budget_max: 24576
+  temperature: 0.3
+  max_output_tokens: 8192
+  context_window: 1048576  # 1M tokens
+  
+user:
+  mode: "non-programmer"  # non-programmer, programmer, expert
+  language: "portuguese"
+  timezone: "America/Sao_Paulo"
+  
+project:
+  type: "continuous_development"
+  scan_on_start: true
+  auto_fix: true
+  preserve_style: true
+  backup_before_changes: true
+  git_integration: true
+  
+behavior:
+  natural_language_only: true
+  auto_execute: true
+  show_progress: true
+  explain_simple: true
+  ask_only_essential: true
+  visual_feedback: true
+  auto_commit: false
+  
+chunking:
+  enabled: true
+  max_chunk_size: 50000
+  overlap_size: 1000
+  
+memory:
+  persist_conversations: true
+  remember_preferences: true
+  cache_analysis: true
+  
+monitoring:
+  watch_files: true
+  detect_errors: true
+  suggest_improvements: true
+  track_performance: true
+  
+security:
+  scan_vulnerabilities: true
+  protect_secrets: true
+  enforce_best_practices: true
+  
+interface:
+  theme: "auto"  # light, dark, auto
+  show_thinking: false
+  compact_mode: false
+  emoji_enabled: true

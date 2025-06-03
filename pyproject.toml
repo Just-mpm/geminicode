@@ -1,0 +1,101 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gemini-code"
+version = "0.1.0"
+description = "Assistente de desenvolvimento completo usando Gemini AI"
+readme = "README.md"
+authors = [
+    {name = "Gemini Code Team", email = "contact@geminicode.dev"},
+]
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Code Generators",
+    "Topic :: Text Processing :: Linguistic",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "google-generativeai>=0.8.0",
+    "click>=8.1.0",
+    "pyyaml>=6.0",
+    "rich>=13.7.0",
+    "watchdog>=3.0.0",
+    "gitpython>=3.1.40",
+    "aiofiles>=23.0.0",
+    "python-dotenv>=1.0.0",
+    "prompt-toolkit>=3.0.0",
+    "pygments>=2.17.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "isort>=5.12.0",
+]
+
+all = [
+    "pandas>=2.0.0",
+    "matplotlib>=3.7.0",
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.13.0",
+    "jinja2>=3.1.0",
+    "markdown>=3.5.0",
+    "psutil>=5.9.0",
+    "networkx>=3.2.0",
+    "tabulate>=0.9.0",
+    "requests>=2.31.0",
+    "aiohttp>=3.9.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/gemini-code/gemini-code"
+Documentation = "https://docs.geminicode.dev"
+Repository = "https://github.com/gemini-code/gemini-code"
+Issues = "https://github.com/gemini-code/gemini-code/issues"
+
+[project.scripts]
+gemini-code = "gemini_code.cli:main"
+
+[tool.setuptools]
+packages = ["gemini_code"]
+
+[tool.black]
+line-length = 100
+target-version = ['py39']
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+addopts = "-ra -q --strict-markers"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]

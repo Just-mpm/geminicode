@@ -1,0 +1,3 @@
+"""
+Interface do Gemini Code
+"""
