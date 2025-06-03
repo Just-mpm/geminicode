@@ -85,7 +85,8 @@ class ArchitecturalReasoning:
         # Se file_manager não foi fornecido, importa e cria uma instância
         if file_manager is None:
             from ..core.file_manager import FileManagementSystem
-            file_manager = FileManagementSystem(project_manager.project_path)
+            from pathlib import Path
+            file_manager = FileManagementSystem(gemini_client, Path(project_manager.project_root))
         self.code_navigator = CodeNavigator(gemini_client, file_manager)
         
         # Cache de análises

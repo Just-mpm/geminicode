@@ -91,7 +91,16 @@ class ProblemSolver:
         self.gemini = gemini_client
         self.project = project_manager
         self.logger = Logger()
-        self.error_detector = ErrorDetector(gemini_client, project_manager.file_manager)
+        
+        # Cria file_manager se necessário para ErrorDetector
+        try:
+            from ..core.file_manager import FileManagementSystem
+            from pathlib import Path
+            file_manager = FileManagementSystem(gemini_client, Path(project_manager.project_root))
+            self.error_detector = ErrorDetector(gemini_client, file_manager)
+        except Exception as e:
+            self.logger.error(f"Erro ao inicializar ErrorDetector: {e}")
+            self.error_detector = None
         
         # Histórico de problemas e soluções
         self.problem_history: List[Problem] = []
