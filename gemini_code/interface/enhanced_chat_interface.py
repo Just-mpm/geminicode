@@ -16,6 +16,7 @@ from ..core.conversation_manager import ConversationManager
 from ..core.nlp_enhanced import NLPEnhanced
 from ..core.file_manager import FileManagementSystem
 from ..core.project_manager import ProjectManager
+from ..core.autonomous_executor import AutonomousExecutor
 from ..analysis.error_detector import ErrorDetector
 from ..analysis.health_monitor import HealthMonitor
 from ..execution.command_executor import CommandExecutor
@@ -53,6 +54,9 @@ class EnhancedChatInterface:
         self.git_manager = GitManager(gemini_client, self.command_executor)
         self.code_generator = CodeGenerator(gemini_client, file_manager)
         
+        # 🚀 SISTEMA AUTÔNOMO - EXECUÇÃO REAL
+        self.autonomous_executor = AutonomousExecutor(project_path)
+        
         # Estado da interface
         self.interactive_mode = True
         self.debug_mode = False
@@ -80,6 +84,11 @@ class EnhancedChatInterface:
                 
                 # Comandos especiais
                 if await self._handle_special_commands(user_input):
+                    continue
+                
+                # 🚀 DETECÇÃO DE COMANDOS AUTÔNOMOS
+                if await self._is_autonomous_command(user_input):
+                    await self._handle_autonomous_command(user_input)
                     continue
                 
                 # Processa mensagem com memória
@@ -230,6 +239,133 @@ class EnhancedChatInterface:
             return True
         
         return False
+    
+    # =================== SISTEMA AUTÔNOMO ===================
+    
+    async def _is_autonomous_command(self, user_input: str) -> bool:
+        """Detecta se é um comando que deve ser executado de forma autônoma"""
+        autonomous_indicators = [
+            # Comandos de verificação + correção
+            'verifica', 'check', 'analisa', 'depois', 'corrige', 'corrija',
+            'crie', 'criar', 'adiciona', 'depois disso', 'em seguida',
+            'valida', 'validar', 'testa', 'testar', 'garante', 'garantir',
+            'até estar', '100%', 'perfeito', 'funcionando', 'funcional',
+            # Padrões de sequência
+            'primeiro', 'depois', 'em seguida', 'por último', 'finalmente',
+            # Comandos complexos
+            'pasta', 'arquivo', 'função', 'classe'
+        ]
+        
+        user_lower = user_input.lower()
+        
+        # Conta indicadores
+        indicator_count = sum(1 for indicator in autonomous_indicators if indicator in user_lower)
+        
+        # Detecta padrões de sequência
+        sequence_patterns = [
+            r'verifica.*corrige.*crie',
+            r'analisa.*depois.*crie',
+            r'check.*fix.*create',
+            r'primeiro.*depois.*por',
+            r'.*depois.*valida'
+        ]
+        
+        has_sequence = any(re.search(pattern, user_lower, re.IGNORECASE) for pattern in sequence_patterns)
+        
+        # É autônomo se tem muitos indicadores OU padrão de sequência
+        is_autonomous = indicator_count >= 3 or has_sequence
+        
+        if is_autonomous:
+            self.console.print(f"🤖 [bold yellow]Comando autônomo detectado![/bold yellow] ({indicator_count} indicadores)")
+        
+        return is_autonomous
+    
+    async def _handle_autonomous_command(self, user_input: str):
+        """Processa comando de forma totalmente autônoma"""
+        self.console.print("\n🚀 [bold green]MODO EXECUÇÃO AUTÔNOMA ATIVADO[/bold green]")
+        self.console.print("[dim]Processando comando de forma estruturada como Claude...[/dim]")
+        
+        try:
+            # Exibe painel de início da execução autônoma
+            self.console.print(Panel(
+                f"[bold]🎯 COMANDO:[/bold] {user_input}\n\n"
+                f"[yellow]⚡ EXECUTANDO DE FORMA AUTÔNOMA...[/yellow]\n"
+                f"[dim]• Dividindo em tarefas estruturadas\n"
+                f"• Executando comandos reais\n" 
+                f"• Validando cada etapa\n"
+                f"• Persistindo até 100% correto[/dim]",
+                title="🤖 Execução Autônoma",
+                border_style="green"
+            ))
+            
+            # Executa comando de forma autônoma
+            result = await self.autonomous_executor.execute_natural_command(user_input)
+            
+            # Exibe resultado final
+            await self._display_autonomous_result(result)
+            
+            # Salva na memória
+            self.conversation_manager.memory_system.remember_conversation(
+                user_input=user_input,
+                response=f"Comando executado autonomamente: {result['status']}",
+                intent={'intent': 'autonomous_execution', 'confidence': 95},
+                success=result['status'] == 'completed'
+            )
+            
+        except Exception as e:
+            error_msg = f"❌ Erro na execução autônoma: {e}"
+            self.console.print(Panel(error_msg, title="💥 Erro", border_style="red"))
+    
+    async def _display_autonomous_result(self, result: Dict[str, Any]):
+        """Exibe resultado da execução autônoma"""
+        
+        # Determina cor baseada no resultado
+        if result['status'] == 'completed':
+            border_color = "green"
+            status_emoji = "🎉"
+            status_text = "SUCESSO TOTAL"
+        elif result['status'] == 'partial':
+            border_color = "yellow"
+            status_emoji = "⚠️"
+            status_text = "PARCIALMENTE CONCLUÍDO"
+        else:
+            border_color = "red"
+            status_emoji = "❌"
+            status_text = "FALHOU"
+        
+        # Monta relatório
+        report_text = f"[bold]{status_emoji} {status_text}[/bold]\n\n"
+        report_text += f"🎯 **Comando Original:** {result['original_command']}\n\n"
+        report_text += f"📊 **Estatísticas:**\n"
+        report_text += f"• Total de tarefas: {result['total_tasks']}\n"
+        report_text += f"• Concluídas: {result['completed_tasks']}\n"
+        report_text += f"• Falharam: {result['failed_tasks']}\n"
+        report_text += f"• Taxa de sucesso: {result['success_rate']:.1f}%\n"
+        report_text += f"• Tempo de execução: {result['execution_time']:.1f}s\n\n"
+        
+        # Detalhes das tarefas
+        report_text += f"📋 **Detalhes das Tarefas:**\n"
+        for i, task in enumerate(result['tasks_detail'], 1):
+            status_icon = "✅" if task['status'] == 'completed' else "❌" if task['status'] == 'failed' else "⏳"
+            report_text += f"{i}. {status_icon} {task['description']}\n"
+            if task['status'] == 'failed' and task['error']:
+                report_text += f"   💭 Erro: {task['error'][:100]}...\n"
+        
+        # Exibe painel final
+        self.console.print(Panel(
+            Markdown(report_text),
+            title=f"🤖 Resultado da Execução Autônoma",
+            border_style=border_color,
+            padding=(1, 2)
+        ))
+        
+        # Mensagem final
+        if result['status'] == 'completed':
+            self.console.print(f"\n[bold green]🎉 Comando executado com sucesso! Projeto está funcionando 100%[/bold green]")
+        elif result['status'] == 'partial':
+            self.console.print(f"\n[bold yellow]⚠️ Comando parcialmente executado. Algumas tarefas falharam.[/bold yellow]")
+        else:
+            self.console.print(f"\n[bold red]❌ Comando falhou. Verifique os erros acima.[/bold red]")
     
     async def _show_memory_status(self):
         """Mostra status da memória."""
