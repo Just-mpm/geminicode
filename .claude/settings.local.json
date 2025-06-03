@@ -18,7 +18,8 @@
       "Bash(touch:*)",
       "Bash(timeout:*)",
       "Bash(rg:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git push:*)"
     ],
     "deny": []
   }

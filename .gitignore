@@ -2,16 +2,47 @@
 __pycache__/
 *.py[cod]
 .env
+.env.*
 .venv/
 venv/
 .coverage
 .pytest_cache/
 .mypy_cache/
+
+# Sensitive data and API keys
+.gemini_code/api_key.txt
+.gemini_code/config/api_key*
+.gemini_code/keys/
+.gemini_code/secrets/
+*.key
+*.pem
+config/api_keys.yaml
+config/secrets.yaml
+
+# Runtime data
 .gemini_code/cache/
 .gemini_code/temp/
+.gemini_code/logs/
+.gemini_code/database.db
+.gemini_code/memory/
+.gemini_code/*.db
+.gemini_code/*.json
+
+# Generated reports and charts
 charts/
 reports/
 health_reports/
 temp*/
 *.tmp
 *.log
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -926,8 +926,29 @@ Responda em português brasileiro."""
             return f"❌ Erro ao apagar: {e}"
     
     async def interactive_mode(self) -> None:
-        """Modo interativo de conversação."""
-        print("💬 Modo interativo iniciado. Digite 'sair' para encerrar.")
+        """Modo interativo de conversação com memória."""
+        from gemini_code.interface.enhanced_chat_interface import EnhancedChatInterface
+        
+        try:
+            # Cria interface aprimorada com memória
+            chat_interface = EnhancedChatInterface(
+                gemini_client=self.gemini_client,
+                project_manager=self.project_manager,
+                file_manager=self.file_manager,
+                project_path=str(Path.cwd())
+            )
+            
+            # Inicia sessão interativa com memória
+            await chat_interface.start_interactive_session()
+            
+        except Exception as e:
+            print(f"❌ Erro no modo interativo: {e}")
+            # Fallback para modo simples se a interface aprimorada falhar
+            await self._fallback_interactive_mode()
+    
+    async def _fallback_interactive_mode(self) -> None:
+        """Modo interativo simples como fallback."""
+        print("💬 Modo interativo básico iniciado. Digite 'sair' para encerrar.")
         print("Exemplo de comandos:")
         print("- Crie um projeto Python chamado 'meu_app'")
         print("- Analise a segurança do código")
