@@ -12,12 +12,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 try:
-    from gemini_code.cli.real_repl import RealGeminiREPL
+    from gemini_code.cli.supreme_repl import SupremeGeminiREPL
     
     async def main():
-        """Função principal para iniciar o REPL REAL."""
-        print("🚀 Iniciando Gemini Code REPL Real...")
-        repl = RealGeminiREPL()
+        """Função principal para iniciar o REPL SUPREMO."""
+        print("🏆 Iniciando Gemini Code REPL SUPREMO...")
+        repl = SupremeGeminiREPL()
         await repl.start()
     
     if __name__ == "__main__":
