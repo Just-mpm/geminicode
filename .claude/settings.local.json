@@ -16,7 +16,9 @@
       "Bash(pip install:*)",
       "Bash(rm:*)",
       "Bash(touch:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(rg:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }

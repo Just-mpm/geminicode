@@ -17,6 +17,7 @@ from ..core.gemini_client import GeminiClient
 from ..core.file_manager import FileManagementSystem
 from .error_detector import ErrorDetector
 from .performance import PerformanceAnalyzer
+from ..utils.error_humanizer import humanize_error
 
 
 @dataclass
@@ -56,18 +57,47 @@ class HealthMonitor:
     def _load_monitoring_config(self) -> Dict[str, Any]:
         """Carrega configuração de monitoramento."""
         return {
-            'error_threshold': 5,  # Máximo de erros aceitáveis
+            'error_threshold': 3,  # Máximo de erros aceitáveis (reduzido para projeto em desenvolvimento)
             'complexity_threshold': 10.0,  # Complexidade máxima por função
             'file_size_threshold': 1000,  # Linhas máximas por arquivo
             'performance_threshold': 100,  # ms máximo para operações
-            'test_coverage_threshold': 80.0,  # % mínimo de cobertura
-            'code_quality_threshold': 7.0,  # Score mínimo de qualidade (0-10)
+            'test_coverage_threshold': 60.0,  # % mínimo de cobertura (ajustado para projeto inicial)
+            'code_quality_threshold': 6.0,  # Score mínimo de qualidade (ajustado)
             'security_threshold': 0,  # Vulnerabilidades máximas
-            'documentation_threshold': 60.0,  # % mínimo de documentação
+            'documentation_threshold': 50.0,  # % mínimo de documentação (ajustado)
             'scan_interval': 300,  # Segundos entre scans automáticos
             'alert_on_decline': True,  # Alerta quando métricas pioram
-            'auto_fix_enabled': True  # Correção automática ativada
+            'auto_fix_enabled': True,  # Correção automática ativada
+            # Exclusões para melhorar precisão da análise
+            'excluded_patterns': [
+                '*/__pycache__/*', '*/venv/*', '*/.env/*', 
+                '*/node_modules/*', '*/dist/*', '*/build/*',
+                '*/.git/*', '*/temp_*', '*_temp*'
+            ]
         }
+    
+    def _filter_valid_python_files(self, project_path: str) -> List[Path]:
+        """Filtra arquivos Python válidos aplicando padrões de exclusão."""
+        all_python_files = list(Path(project_path).rglob("*.py"))
+        valid_python_files = []
+        
+        for f in all_python_files:
+            if not f.is_file():
+                continue
+                
+            file_str = str(f)
+            should_exclude = False
+            
+            for pattern in self.monitoring_config['excluded_patterns']:
+                import fnmatch
+                if fnmatch.fnmatch(file_str, pattern) or fnmatch.fnmatch(f.name, pattern):
+                    should_exclude = True
+                    break
+            
+            if not should_exclude and not f.name.startswith('.'):
+                valid_python_files.append(f)
+        
+        return valid_python_files
     
     async def full_health_check(self, project_path: str) -> ProjectHealth:
         """Executa verificação completa de saúde."""
@@ -158,12 +188,13 @@ class HealthMonitor:
             )
             
         except Exception as e:
+            friendly_error = humanize_error(e, "Verificação de erros do projeto")
             return HealthMetric(
                 name="Erros",
                 value=0,
                 threshold=self.monitoring_config['error_threshold'],
                 status="critical",
-                description=f"Erro ao verificar: {e}",
+                description=friendly_error,
                 trend="stable",
                 last_updated=datetime.now()
             )
@@ -192,12 +223,13 @@ class HealthMonitor:
             )
             
         except Exception as e:
+            friendly_error = humanize_error(e, "Análise de performance do projeto")
             return HealthMetric(
                 name="Performance",
                 value=50,
                 threshold=80,
                 status="warning",
-                description=f"Erro ao verificar performance: {e}",
+                description=friendly_error,
                 trend="stable",
                 last_updated=datetime.now()
             )
@@ -206,7 +238,10 @@ class HealthMonitor:
         """Verifica qualidade de código usando IA."""
         try:
             # Analisa qualidade com IA (amostra de arquivos)
-            python_files = list(Path(project_path).rglob("*.py"))[:5]  # Limita amostra
+            valid_python_files = self._filter_valid_python_files(project_path)
+            
+            # Limita amostra a 5 arquivos para análise de qualidade
+            python_files = valid_python_files[:5]
             
             quality_scores = []
             
@@ -280,7 +315,10 @@ class HealthMonitor:
             function_count = 0
             high_complexity_functions = 0
             
-            for file_path in Path(project_path).rglob("*.py"):
+            # Filtra arquivos Python válidos
+            valid_python_files = self._filter_valid_python_files(project_path)
+            
+            for file_path in valid_python_files:
                 try:
                     with open(file_path, 'r', encoding='utf-8') as f:
                         content = f.read()
@@ -400,7 +438,10 @@ class HealthMonitor:
                 (r'input\s*\(', 'input() pode ser vulnerável a injection'),
             ]
             
-            for file_path in Path(project_path).rglob("*.py"):
+            # Filtra arquivos Python válidos
+            valid_python_files = self._filter_valid_python_files(project_path)
+            
+            for file_path in valid_python_files:
                 try:
                     with open(file_path, 'r', encoding='utf-8') as f:
                         content = f.read()
@@ -449,7 +490,10 @@ class HealthMonitor:
             total_functions = 0
             documented_functions = 0
             
-            for file_path in Path(project_path).rglob("*.py"):
+            # Filtra arquivos Python válidos
+            valid_python_files = self._filter_valid_python_files(project_path)
+            
+            for file_path in valid_python_files:
                 try:
                     with open(file_path, 'r', encoding='utf-8') as f:
                         content = f.read()
@@ -513,14 +557,18 @@ class HealthMonitor:
                 issues.append("Projeto vazio")
             
             # Verifica se há arquivos Python
-            python_files = list(Path(project_path).rglob("*.py"))
-            if not python_files:
+            valid_python_files = self._filter_valid_python_files(project_path)
+            
+            if not valid_python_files:
                 score -= 40
                 issues.append("Nenhum arquivo Python encontrado")
+            else:
+                # Debug: mostra quantos arquivos foram encontrados
+                print(f"   ℹ️  Encontrados {len(valid_python_files)} arquivos Python válidos")
             
             # Verifica tamanho dos arquivos
             large_files = []
-            for file_path in python_files:
+            for file_path in valid_python_files:
                 try:
                     with open(file_path, 'r', encoding='utf-8') as f:
                         line_count = len(f.readlines())

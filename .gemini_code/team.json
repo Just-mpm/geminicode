@@ -1,0 +1,35 @@
+{
+  "members": {
+    "owner_001": {
+      "id": "owner_001",
+      "name": "Proprietário",
+      "email": "owner@geminicode.local",
+      "role": "owner",
+      "permissions": [
+        "delete",
+        "review",
+        "admin",
+        "write",
+        "deploy",
+        "read",
+        "execute"
+      ],
+      "joined_at": "2025-06-03T03:06:03.968299",
+      "last_active": null,
+      "avatar_url": null,
+      "bio": null,
+      "skills": [],
+      "timezone": "UTC",
+      "status": "active",
+      "projects": [],
+      "contributions": {
+        "commits": 0,
+        "reviews": 0,
+        "issues_created": 0,
+        "issues_resolved": 0
+      }
+    }
+  },
+  "invitations": {},
+  "saved_at": "2025-06-03T03:06:03.968384"
+}

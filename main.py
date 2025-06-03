@@ -27,6 +27,9 @@ from gemini_code.monitoring.continuous_monitor import ContinuousMonitor
 from gemini_code.security.security_scanner import SecurityScanner
 from gemini_code.metrics.business_metrics import BusinessMetrics
 from gemini_code.metrics.analytics_engine import AnalyticsEngine
+from gemini_code.analysis.health_monitor import HealthMonitor
+from gemini_code.analysis.error_detector import ErrorDetector
+from gemini_code.analysis.performance import PerformanceAnalyzer
 # Importações condicionais para funcionalidades que dependem de matplotlib
 try:
     from gemini_code.metrics.dashboard_generator import DashboardGenerator
@@ -66,6 +69,9 @@ class GeminiCodeMain:
         self.team_manager: Optional[TeamManager] = None
         self.project_sharing: Optional[ProjectSharing] = None
         self.real_time_sync: Optional[RealTimeSync] = None
+        self.health_monitor: Optional[HealthMonitor] = None
+        self.error_detector: Optional[ErrorDetector] = None
+        self.performance_analyzer: Optional[PerformanceAnalyzer] = None
         self.running = False
     
     async def initialize(self, api_key: Optional[str] = None) -> None:
@@ -107,6 +113,14 @@ class GeminiCodeMain:
             container.register('analytics_engine', AnalyticsEngine,
                              dependencies={'gemini_client': 'gemini_client', 'db_manager': 'db_manager'})
             
+            # Analysis modules
+            container.register('error_detector', ErrorDetector,
+                             dependencies={'gemini_client': 'gemini_client', 'file_manager': 'file_manager'})
+            container.register('performance_analyzer', PerformanceAnalyzer,
+                             dependencies={'gemini_client': 'gemini_client', 'file_manager': 'file_manager'})
+            container.register('health_monitor', HealthMonitor,
+                             dependencies={'gemini_client': 'gemini_client', 'file_manager': 'file_manager'})
+            
             # Team
             container.register('team_manager', TeamManager, dependencies={'gemini_client': 'gemini_client'})
             
@@ -143,6 +157,15 @@ class GeminiCodeMain:
             
             print("🔧 Inicializando AnalyticsEngine...")
             self.analytics_engine = container.get('analytics_engine')
+            
+            print("🔧 Inicializando ErrorDetector...")
+            self.error_detector = container.get('error_detector')
+            
+            print("🔧 Inicializando PerformanceAnalyzer...")
+            self.performance_analyzer = container.get('performance_analyzer')
+            
+            print("🔧 Inicializando HealthMonitor...")
+            self.health_monitor = container.get('health_monitor')
             
             # Componentes opcionais
             if DASHBOARD_AVAILABLE:

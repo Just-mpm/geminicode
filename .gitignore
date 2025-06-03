@@ -1,98 +1,17 @@
-# Python
+# Gemini Code .gitignore
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# Virtual Environment
-venv/
-ENV/
-env/
-.venv
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# Project specific
-.gemini_code/
-!.gemini_code/config.yaml.example
-
-# Environment variables
 .env
-.env.local
-.env.*.local
-
-# Logs
-*.log
-logs/
-
-# Testing
+.venv/
+venv/
 .coverage
 .pytest_cache/
-.tox/
-.nox/
-htmlcov/
-coverage.xml
-*.cover
-.hypothesis/
-
-# Temporary files
+.mypy_cache/
+.gemini_code/cache/
+.gemini_code/temp/
+charts/
+reports/
+health_reports/
+temp*/
 *.tmp
-*.temp
-.DS_Store
-Thumbs.db
-
-# API Keys
-api_key.txt
-*.key
-
-# Backups
-*.bak
-backups/
-
-# Scripts de instalação obsoletos
-atualizar.bat
-forcar_*.bat
-instalar_*.bat
-instalar_*.py
-reinstalar_*.bat
-iniciar.bat
-iniciar.sh
-iniciar_completo.bat
-
-# Documentação temporária
-COMANDOS_*.md
-CORRECOES_*.md
-INSTALACAO_*.md
-NOVOS_*.md
-TESTE_*.md
-
-# Arquivos de teste temporários
-debug_*.py
-test_gemini_*.py
-teste_*.py
-verificacao_*.py
-
-# Múltiplos ambientes virtuais
-venv_*/
+*.log

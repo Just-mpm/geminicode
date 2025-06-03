@@ -607,6 +607,23 @@ class NLPEnhanced:
     
     async def identify_intent(self, text: str) -> Dict[str, Any]:
         """Identifica intenção do texto (compatibilidade com main.py)."""
+        # Validação de entrada robusta
+        if not text or not text.strip():
+            return {
+                'intent': IntentType.UNKNOWN.value,
+                'confidence': 0,
+                'entities': {},
+                'sentiment': 'neutral',
+                'context_clues': []
+            }
+        
+        # Remove excesso de espaços e caracteres de controle
+        text = ' '.join(text.strip().split())
+        
+        # Limite de tamanho para evitar problemas de performance
+        if len(text) > 5000:
+            text = text[:5000]
+        
         intent = self.analyze(text)
         
         # Garante que a confiança mínima seja 1% se não for UNKNOWN

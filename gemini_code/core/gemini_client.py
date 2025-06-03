@@ -82,8 +82,10 @@ class GeminiClient:
         
         try:
             genai.configure(api_key=api_key)
+            # Valida se a API key é válida tentando listar modelos
+            list(genai.list_models())
         except Exception as e:
-            print(f"⚠️ Erro ao configurar Gemini: {e}")
+            print(f"⚠️ Erro ao configurar Gemini (chave inválida?): {e}")
             self.model = None
             return
         
