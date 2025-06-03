@@ -131,7 +131,7 @@ class AutonomousExecutor:
             operations.append({
                 'type': 'final_validation',
                 'description': 'Validação final - garantir 100% funcionando',
-                'command': 'python -c "print(\'🎉 Validação completa - Sistema funcional!\')"',
+                'command': 'python -c "print(\'Validacao completa - Sistema funcional!\')"',
                 'validation': 'echo "Validation successful"'
             })
         
@@ -151,7 +151,7 @@ class AutonomousExecutor:
             tasks.append(Task(
                 id="final_check",
                 description="Validação final - garantir que tudo está funcionando",
-                command="python -c \"print('🎉 Final validation - Sistema 100% funcional!')\"",
+                command="python -c \"print('Final validation - Sistema 100% funcional!')\"",
                 validation="python -c \"print('Project is 100% functional')\""
             ))
         
@@ -377,8 +377,16 @@ class AutonomousExecutor:
                 # Verifica se arquivo existe ou instala dependência
                 
             elif 'syntax error' in task.error.lower():
-                print("   📝 Erro de sintaxe detectado")
+                print("   Erro de sintaxe detectado")
                 # Tenta corrigir sintaxe automaticamente
+                
+            elif 'unicodeencodeerror' in task.error.lower() or 'charmap' in task.error.lower():
+                print("   Erro de encoding Unicode detectado")
+                # Remove emojis e caracteres especiais dos comandos
+                if hasattr(task, 'command') and task.command:
+                    # Remove emojis e substitui por texto simples
+                    task.command = task.command.replace('🎉', '').replace('✅', '').replace('❌', '')
+                    task.command = task.command.replace('Validação', 'Validacao')
         
         # Aguarda antes de tentar novamente
         await asyncio.sleep(2)
@@ -416,9 +424,9 @@ class AutonomousExecutor:
                 all_passed = False
         
         if all_passed:
-            print(f"\n🎉 PROJETO 100% FUNCIONAL! ✅")
+            print(f"\nPROJETO 100% FUNCIONAL!")
         else:
-            print(f"\n⚠️ Alguns problemas ainda existem")
+            print(f"\nAlguns problemas ainda existem")
         
         return all_passed
     
