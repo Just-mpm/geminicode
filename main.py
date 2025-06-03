@@ -31,6 +31,8 @@ from gemini_code.metrics.analytics_engine import AnalyticsEngine
 from gemini_code.analysis.health_monitor import HealthMonitor
 from gemini_code.analysis.error_detector import ErrorDetector
 from gemini_code.analysis.performance import PerformanceAnalyzer
+from gemini_code.core.self_healing import SelfHealingSystem
+from gemini_code.core.ultra_executor import UltraExecutor
 # Importações condicionais para funcionalidades que dependem de matplotlib
 try:
     from gemini_code.metrics.dashboard_generator import DashboardGenerator
@@ -74,6 +76,8 @@ class GeminiCodeMain:
         self.health_monitor: Optional[HealthMonitor] = None
         self.error_detector: Optional[ErrorDetector] = None
         self.performance_analyzer: Optional[PerformanceAnalyzer] = None
+        self.self_healing: Optional[SelfHealingSystem] = None
+        self.ultra_executor: Optional[UltraExecutor] = None
         self.running = False
     
     async def initialize(self, api_key: Optional[str] = None) -> None:
@@ -173,6 +177,12 @@ class GeminiCodeMain:
             print("🔧 Inicializando HealthMonitor...")
             self.health_monitor = container.get('health_monitor')
             
+            print("🔧 Inicializando SelfHealingSystem...")
+            self.self_healing = SelfHealingSystem(str(Path.cwd()))
+            
+            print("🚀 Inicializando UltraExecutor...")
+            self.ultra_executor = UltraExecutor(str(Path.cwd()), self.gemini_client)
+            
             # Componentes opcionais
             if DASHBOARD_AVAILABLE:
                 print("🔧 Inicializando DashboardGenerator...")
@@ -240,14 +250,24 @@ class GeminiCodeMain:
         print("🛑 Parando serviços...")
         
         try:
-            if self.monitor:
-                await self.monitor.stop_monitoring()
+            # Verificar se os métodos existem antes de chamar
+            if self.monitor and hasattr(self.monitor, 'stop_monitoring'):
+                try:
+                    await self.monitor.stop_monitoring()
+                except Exception as e:
+                    print(f"⚠️ Aviso ao parar monitor: {e}")
             
-            if self.kpi_tracker:
-                await self.kpi_tracker.stop_monitoring()
+            if self.kpi_tracker and hasattr(self.kpi_tracker, 'stop_monitoring'):
+                try:
+                    await self.kpi_tracker.stop_monitoring()
+                except Exception as e:
+                    print(f"⚠️ Aviso ao parar KPI tracker: {e}")
             
-            if self.real_time_sync:
-                await self.real_time_sync.stop_sync()
+            if self.real_time_sync and hasattr(self.real_time_sync, 'stop_sync'):
+                try:
+                    await self.real_time_sync.stop_sync()
+                except Exception as e:
+                    print(f"⚠️ Aviso ao parar sync: {e}")
             
             self.running = False
             print("✅ Serviços parados!")
@@ -276,6 +296,13 @@ class GeminiCodeMain:
                     response = await self._handle_massive_analysis(command, entities)
                 else:
                     response = await self._handle_analyze_code(command, entities)
+            # Auto-diagnóstico e auto-correção
+            elif intent == 'self_diagnosis' or 'diagnosticar' in command.lower() or 'auto diagnóstico' in command.lower():
+                response = await self._handle_self_diagnosis(command, entities)
+            elif intent == 'self_improve' or 'melhorar sistema' in command.lower() or 'adicionar feature' in command.lower():
+                response = await self._handle_self_improvement(command, entities)
+            elif 'ultra' in command.lower() or 'complexo' in command.lower() or len(command) > 300:
+                response = await self._handle_ultra_complex_command(command, entities)
             # Intents para capacidades aprimoradas
             elif intent == 'massive_analysis' or 'análise completa' in command.lower():
                 response = await self._handle_massive_analysis(command, entities)
@@ -943,6 +970,84 @@ Responda em português brasileiro."""
             return f"❌ Sem permissão para apagar '{target}'. Verifique as permissões."
         except Exception as e:
             return f"❌ Erro ao apagar: {e}"
+    
+    # =================== HANDLERS PARA AUTO-DIAGNÓSTICO ===================
+    
+    async def _handle_self_diagnosis(self, command: str, entities: dict) -> str:
+        """Realiza auto-diagnóstico do sistema."""
+        try:
+            print("🔍 Iniciando auto-diagnóstico do Gemini Code...")
+            
+            # Realizar diagnóstico
+            health = await self.self_healing.diagnose_system()
+            
+            # Gerar relatório
+            report = await self.self_healing.generate_diagnostic_report(health)
+            
+            # Verificar se deve aplicar correções automáticas
+            if 'corrigir' in command.lower() or 'fix' in command.lower() or 'consertar' in command.lower():
+                if health.auto_fixes_available > 0:
+                    print(f"🔧 Aplicando {health.auto_fixes_available} correções automáticas...")
+                    fixes = await self.self_healing.auto_fix(health)
+                    
+                    report += f"\n\n🔧 CORREÇÕES APLICADAS:\n"
+                    for fix in fixes:
+                        status = "✅" if fix['success'] else "❌"
+                        report += f"{status} {fix['component']}: {fix.get('output', fix.get('error', 'Sem detalhes'))}\n"
+            
+            return report
+            
+        except Exception as e:
+            return f"❌ Erro no auto-diagnóstico: {e}"
+    
+    async def _handle_self_improvement(self, command: str, entities: dict) -> str:
+        """Permite que o sistema se melhore."""
+        try:
+            # Extrair o que deve ser melhorado
+            improvement_request = command.replace('melhorar sistema', '').replace('adicionar feature', '').strip()
+            
+            if not improvement_request:
+                return "❌ Por favor, especifique o que deseja melhorar ou adicionar ao sistema."
+            
+            print(f"🚀 Iniciando auto-melhoria: {improvement_request}")
+            
+            result = await self.self_healing.self_improve(improvement_request)
+            
+            if result['success']:
+                return f"✅ Melhoria aplicada com sucesso!\n\n" \
+                       f"Ação: {result['action']}\n" \
+                       f"Detalhes: {result['details']}"
+            else:
+                return f"❌ Falha na auto-melhoria: {result.get('details', 'Erro desconhecido')}"
+                
+        except Exception as e:
+            return f"❌ Erro na auto-melhoria: {e}"
+    
+    async def _handle_ultra_complex_command(self, command: str, entities: dict) -> str:
+        """Manipula comandos ultra complexos usando o UltraExecutor."""
+        try:
+            print("🚀 Executando comando ultra complexo...")
+            
+            result = await self.ultra_executor.execute_natural_command(command)
+            
+            if result.get('success', False):
+                files_info = ""
+                if result.get('files_created'):
+                    files_info += f"\n📁 Arquivos criados: {len(result['files_created'])}"
+                if result.get('files_modified'):
+                    files_info += f"\n✏️  Arquivos modificados: {len(result['files_modified'])}"
+                
+                return f"✅ Comando ultra complexo executado com sucesso!\n\n" \
+                       f"Status: {result.get('status', 'success')}\n" \
+                       f"Tempo de execução: {result.get('execution_time', 0):.2f}s" \
+                       f"{files_info}\n\n" \
+                       f"Detalhes: {result.get('execution_details', 'Execução completada')}"
+            else:
+                error_msg = result.get('error', 'Erro desconhecido')
+                return f"❌ Falha na execução do comando ultra complexo:\n\n{error_msg}"
+                
+        except Exception as e:
+            return f"❌ Erro no processamento ultra complexo: {e}"
     
     # =================== HANDLERS PARA CAPACIDADES APRIMORADAS ===================
     

@@ -1,48 +1,81 @@
-# Gemini Code .gitignore
+# Gemini Code - Assistente de IA Completo
+# .gitignore
+
+# Python
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
 .env
-.env.*
 .venv/
 venv/
+env/
+ENV/
+
+# Testing
 .coverage
 .pytest_cache/
-.mypy_cache/
+.tox/
+.cache
+htmlcov/
 
-# Sensitive data and API keys
-.gemini_code/api_key.txt
-.gemini_code/config/api_key*
-.gemini_code/keys/
-.gemini_code/secrets/
-*.key
-*.pem
-config/api_keys.yaml
-config/secrets.yaml
-
-# Runtime data
-.gemini_code/cache/
-.gemini_code/temp/
-.gemini_code/logs/
-.gemini_code/database.db
-.gemini_code/memory/
-.gemini_code/*.db
-.gemini_code/*.json
-
-# Generated reports and charts
-charts/
-reports/
-health_reports/
-temp*/
-*.tmp
-*.log
-
-# IDE and editor files
+# IDE and editors
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+.spyderproject
+.spyproject
 
 # OS files
 .DS_Store
+.DS_Store?
+._*
 Thumbs.db
+ehthumbs.db
+
+# Gemini Code specific
+.gemini_code/memory/*.db
+.gemini_code/cache/
+.gemini_code/temp/
+.gemini_code/logs/
+*.tmp
+*.log
+temp*/
+
+# API keys and secrets (IMPORTANT!)
+*.key
+*.pem
+config/api_keys.yaml
+config/secrets.yaml
+.gemini_code/api_key.txt
+.gemini_code/keys/
+.gemini_code/secrets/
+
+# Generated content
+agents/*/
+charts/
+test_critical_workspace/
+
+# Reports (versioned in reports/ folder)
+*_report.json
+real_execution_evidence.json

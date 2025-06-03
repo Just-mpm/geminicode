@@ -91,6 +91,12 @@ class EnhancedChatInterface:
                     await self._handle_autonomous_command(user_input)
                     continue
                 
+                # 🔧 NOVA FUNCIONALIDADE: Comandos simples de execução direta
+                simple_execution_intent = await self._identify_simple_execution_intent(user_input)
+                if simple_execution_intent:
+                    await self._handle_simple_execution_command(user_input, simple_execution_intent)
+                    continue
+                
                 # Processa mensagem com memória
                 await self.process_message_with_memory(user_input)
                 
@@ -256,7 +262,23 @@ class EnhancedChatInterface:
             'pasta', 'arquivo', 'função', 'classe'
         ]
         
+        # Comandos simples que sempre devem ser executados autonomamente
+        simple_action_patterns = [
+            r'crie?\s+(um|uma)?\s*(arquivo|pasta|diretório|diretorio)',
+            r'criar?\s+(um|uma)?\s*(arquivo|pasta|diretório|diretorio)',
+            r'faça?\s+(um|uma)?\s*(arquivo|pasta|diretório|diretorio)',
+            r'gere?\s+(um|uma)?\s*(arquivo|pasta|diretório|diretorio)',
+            r'para\s+(você|voce)\s+criar',
+            r'é\s+para\s+(você|voce)\s+criar'
+        ]
+        
         user_lower = user_input.lower()
+        
+        # Verifica padrões de ação simples primeiro
+        for pattern in simple_action_patterns:
+            if re.search(pattern, user_lower, re.IGNORECASE):
+                self.console.print(f"🤖 [bold yellow]Comando de ação detectado![/bold yellow] (ação simples)")
+                return True
         
         # Conta indicadores
         indicator_count = sum(1 for indicator in autonomous_indicators if indicator in user_lower)
@@ -476,6 +498,185 @@ class EnhancedChatInterface:
         
         self.console.print(Panel(help_text, title="📚 Ajuda", border_style="blue"))
     
+    async def _identify_simple_execution_intent(self, user_input: str) -> Optional[Dict]:
+        """
+        Identifica se o input do usuário é um comando simples que requer execução direta.
+        Utiliza o NLPEnhanced para classificar a intenção.
+        """
+        try:
+            nlp_result = await self.nlp.identify_intent(user_input)
+            self.logger.info(f"NLP result for simple execution check: {nlp_result}")
+
+            simple_execution_intents = [
+                'create_file',
+                'delete', 
+                'run_command',
+                'create_feature',  # Adicionar para capturar mais comandos
+                'create_agent'     # Adicionar para capturar mais comandos
+            ]
+
+            # Adicionar uma verificação de confiança mínima
+            if nlp_result['intent'] in simple_execution_intents and nlp_result['confidence'] > 70:
+                
+                if nlp_result['intent'] == 'delete':
+                    target_entity = nlp_result['entities'].get('target')
+                    if target_entity:
+                        return {'type': 'delete', 'target': target_entity, 'raw_input': user_input}
+
+                elif nlp_result['intent'] == 'run_command':
+                    # Tenta extrair o comando real a ser executado
+                    import re
+                    
+                    # Padrões para extrair comandos
+                    command_patterns = [
+                        r'(?:execute|roda|execute o comando)\s+(.+)',
+                        r'^(ls|dir|pwd|cd|mkdir|rmdir)\s*(.*)$',
+                        r'^(git\s+(?:status|log|diff|add|commit|push|pull))\s*(.*)$',
+                        r'comando\s+(.+)'
+                    ]
+                    
+                    for pattern in command_patterns:
+                        match = re.search(pattern, user_input, re.IGNORECASE)
+                        if match:
+                            if len(match.groups()) == 1:
+                                actual_command_to_run = match.group(1).strip()
+                            else:
+                                actual_command_to_run = (match.group(1) + ' ' + match.group(2)).strip()
+                            
+                            if actual_command_to_run:
+                                return {'type': 'run_command', 'command_to_run': actual_command_to_run, 'raw_input': user_input}
+                    
+                    # Se não conseguir extrair, pode ser um comando simples conhecido
+                    known_simple_commands = [
+                        "git status", "git log", "git log -n 5", "dir", "ls", "ls -la", "pwd",
+                        "git diff", "git add .", "npm install", "python --version"
+                    ]
+                    
+                    user_lower = user_input.lower().strip()
+                    for cmd in known_simple_commands:
+                        if user_lower == cmd or user_lower.startswith(cmd + ' '):
+                            return {'type': 'run_command', 'command_to_run': user_input.strip(), 'raw_input': user_input}
+                        
+                elif nlp_result['intent'] == 'create_file':
+                    # Verifica se é criação de pasta
+                    if any(word in user_input.lower() for word in ['pasta', 'diretório', 'diretorio', 'folder']):
+                        # Extrai nome da pasta
+                        import re
+                        folder_patterns = [
+                            r'pasta\s+(?:chamada?\s+)?(?:de\s+)?([\w\-_]+)',
+                            r'diret[oó]rio\s+(?:chamado?\s+)?([\w\-_]+)',
+                            r'criar?\s+(?:uma?\s+)?pasta\s+([\w\-_]+)',
+                            r'crie?\s+(?:uma?\s+)?pasta\s+([\w\-_]+)'
+                        ]
+                        
+                        for pattern in folder_patterns:
+                            match = re.search(pattern, user_input, re.IGNORECASE)
+                            if match:
+                                folder_name = match.group(1)
+                                return {'type': 'create_folder', 'folder_name': folder_name, 'raw_input': user_input}
+                        
+                        # Se não extraiu nome específico, usa nome padrão baseado no contexto
+                        if 'ideias' in user_input.lower() or 'ideia' in user_input.lower():
+                            return {'type': 'create_folder', 'folder_name': 'ideias', 'raw_input': user_input}
+                        else:
+                            return {'type': 'create_folder', 'folder_name': 'nova_pasta', 'raw_input': user_input}
+
+            self.logger.info(f"Comando '{user_input}' não identificado como execução simples.")
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Erro ao identificar intenção simples: {e}")
+            return None
+
+    async def _handle_simple_execution_command(self, user_input: str, intent_details: Dict):
+        """
+        Lida com a execução de comandos simples identificados.
+        Utiliza o self.command_executor para rodar os comandos.
+        """
+        self.console.print(f"[cyan]⚡ Executando comando simples: {intent_details['type']}[/cyan]")
+        
+        try:
+            # Contexto para execução do comando
+            from ..execution.command_executor import CommandContext
+            cmd_context = CommandContext(
+                working_directory=str(self.project_path),
+                environment={},
+                timeout=60.0,
+                safe_mode=True
+            )
+
+            actual_command_to_execute = None
+            operation_description = user_input
+
+            if intent_details['type'] == 'delete':
+                target = intent_details['target']
+                # Confirmação do usuário antes de deletar
+                confirm = self.console.input(f"[yellow]⚠️ Tem certeza que quer deletar '{target}'? (s/N): [/yellow]")
+                if confirm.lower() == 's':
+                    # Usar file_manager é mais seguro
+                    from pathlib import Path
+                    target_path = Path(self.project_path) / target
+                    if target_path.exists():
+                        if target_path.is_file():
+                            target_path.unlink()
+                            self.console.print(f"[green]✅ Arquivo '{target}' deletado com sucesso![/green]")
+                        elif target_path.is_dir():
+                            import shutil
+                            shutil.rmtree(target_path)
+                            self.console.print(f"[green]✅ Pasta '{target}' deletada com sucesso![/green]")
+                    else:
+                        self.console.print(f"[red]❌ '{target}' não encontrado.[/red]")
+                else:
+                    self.console.print("[yellow]🚫 Operação cancelada.[/yellow]")
+                return
+
+            elif intent_details['type'] == 'create_folder':
+                from pathlib import Path
+                folder_name = intent_details.get('folder_name', 'nova_pasta')
+                folder_path = Path(self.project_path) / folder_name
+                
+                if folder_path.exists():
+                    self.console.print(f"[yellow]⚠️ Pasta '{folder_name}' já existe.[/yellow]")
+                else:
+                    folder_path.mkdir(parents=True, exist_ok=True)
+                    self.console.print(f"[green]✅ Pasta '{folder_name}' criada com sucesso![/green]")
+                    self.console.print(f"[dim]📍 Localização: {folder_path}[/dim]")
+                return
+
+            elif intent_details['type'] == 'run_command':
+                actual_command_to_execute = intent_details.get('command_to_run')
+                if not actual_command_to_execute:
+                     self.console.print("[red]❌ Não foi possível extrair o comando a ser executado.[/red]")
+                     return
+
+            if actual_command_to_execute:
+                self.console.print(f"💻 Executando: `{actual_command_to_execute}`")
+                result = await self.command_executor.execute_command(actual_command_to_execute, cmd_context)
+                
+                if result.success:
+                    self.console.print(f"[green]✅ Comando executado com sucesso![/green]")
+                    if result.stdout:
+                        self.console.print(f"Saída:\n{result.stdout}")
+                else:
+                    self.console.print(f"[red]❌ Falha ao executar comando.[/red]")
+                    if result.stderr:
+                        self.console.print(f"Erro:\n{result.stderr}")
+                    elif result.stdout:
+                         self.console.print(f"Saída (pode conter erro):\n{result.stdout}")
+
+                # Salvar na memória
+                self.conversation_manager.memory_system.remember_conversation(
+                    user_input=operation_description,
+                    response=result.stdout if result.success else result.stderr,
+                    intent={'intent': intent_details['type'], 'confidence': 90},
+                    success=result.success,
+                    error=result.stderr if not result.success else None
+                )
+            
+        except Exception as e:
+            self.console.print(f"[red]❌ Erro ao executar comando simples: {e}[/red]")
+            self.logger.error(f"Erro na execução de comando simples: {e}")
+
     async def _exit_session(self):
         """Encerra sessão."""
         # Exporta conversa se houve atividade
